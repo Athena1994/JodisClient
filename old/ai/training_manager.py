@@ -13,8 +13,8 @@ from ai.q_arbiter import QArbiter, DQNWrapper
 from ai.q_nn import QNN
 from ai.replay_buffer import ReplayBuffer
 from ai.trainer import DQNTrainer
-from data.chunk_type import ChunkType
-from data.chunks import DataChunk
+from old.chunk_type import ChunkType
+from old.chunks import DataChunk
 from data.utils import split_df
 from technical_indicators.indicators import IndicatorDescription, Indicator
 

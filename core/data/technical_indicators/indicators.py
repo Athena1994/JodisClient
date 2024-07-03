@@ -38,6 +38,13 @@ class Indicator:
 
     def get_norm_factor(self) -> float:
         return self._norm_factor
+    
+    def __hash__(self):
+        return hash(self._name) + hash(tuple(self._params.items()))
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, Indicator):
+            return False
+        return self._name == value._name and self._params == value._params
 
 
 class IndicatorParameterDescription(typing.NamedTuple):

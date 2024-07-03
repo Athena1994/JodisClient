@@ -4,7 +4,7 @@ from abc import abstractmethod
 
 import numpy as np
 
-from data.data_source import DataSource
+from old.data_source import DataSource
 from trading.trading_environment import TradingEnvironment
 from trading.wallet import Wallet
 

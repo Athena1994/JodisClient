@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 import data.utils
-from data.data_source import DataSource, CandleData
+from old.data_source import DataSource, CandleData
 from data.utils import CandleInterval, get_open_close_av, correct_rate_for_fee
 
 

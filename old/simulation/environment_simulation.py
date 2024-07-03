@@ -2,8 +2,8 @@ import typing
 
 import numpy as np
 
-from data.chunks import DataChunk, ChunkDataSource, DataChunkIt
-from data.data_source import DataSource
+from old.chunks import DataChunk, ChunkDataSource, DataChunkIt
+from old.data_source import DataSource
 
 from trading.interface import BaseTradingInterface, TradingInterface, TradingEnvironment
 from trading.wallet import Wallet

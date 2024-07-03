@@ -4,8 +4,8 @@ from collections import namedtuple
 
 import numpy as np
 
-from data.chunks import DataChunk, DataChunkIt
-from data.data_source import CandleData
+from old.chunks import DataChunk, DataChunkIt
+from old.data_source import CandleData
 from data.utils import get_open_close_av, correct_rate_for_fee
 from trading.interface import Wallet
 from ai.utils import Actions

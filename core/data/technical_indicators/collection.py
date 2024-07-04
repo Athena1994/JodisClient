@@ -1,6 +1,6 @@
 from typing import List
 
-from technical_indicators.momentum import *
+from .momentum import *
 
 
 class IndicatorCollection:

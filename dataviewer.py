@@ -66,10 +66,10 @@ def load_cached_data(input: str) -> pd.DataFrame:
 def cache_data(data: pd.DataFrame, output: str):
     data.to_csv(output, index=False)
 
-def fetch_and_proccess(currency: str, interval: str, chunk_size: int, ratio: float, test_num: int):
+def fetch_and_proccess(currency: str, interval: str, chunk_size: int, ratio: float, test_num: int, skip_cnt: int):
     data = load_data(currency, interval)
     time_chunks_ixs = split_time_chunks(data)
-    data = mark_chunks(data, time_chunks_ixs, chunk_size)
+    data = mark_chunks(data, time_chunks_ixs, chunk_size, skip_cnt)
     chunk_cnt = data['chunk'].max() + 1
     split_list = training_split(chunk_cnt, ratio, test_num)
     data['chunk_type'] = -1
@@ -77,7 +77,7 @@ def fetch_and_proccess(currency: str, interval: str, chunk_size: int, ratio: flo
         data.loc[data['chunk'] == i, 'chunk_type'] = chunk_type
     return data
 
-def apply_indicator(data: pd.DataFrame, indicator: dict):
+#def apply_indicator(data: pd.DataFrame, indicator: dict):
     
 
 def read_and_apply_indicators(data: pd.DataFrame, indicator_file: str):
@@ -103,6 +103,7 @@ def main(argv):
     parser.add_argument('-i', '--interval', type=str, default="ONE_MINUTE", help='Interval to explore.')
     parser.add_argument('-o', '--output', type=str, help='Output file for cached data.', default="data.csv")
     parser.add_argument('-s', '--size', type=int, help='chunk size', default=60*24)
+    parser.add_argument('--skip', type=int, help='number of samples to skip for indicator prelude when creating chunks', default=64)
     parser.add_argument('-q', '--ratio', type=float, help='validation split ratio', default=0.2)
     parser.add_argument('-t', '--test_num', type=float, help='number of test chunks', default=7)
 
@@ -118,7 +119,7 @@ def main(argv):
     if args.cache:
         data = load_cached_data(args.cache)
     else:
-        data = fetch_and_proccess(args.pair, args.interval, args.size, args.ratio, args.test_num)
+        data = fetch_and_proccess(args.pair, args.interval, args.size, args.ratio, args.test_num, args.skip)
         cache_data(data, args.output)
 
     if args.stats:

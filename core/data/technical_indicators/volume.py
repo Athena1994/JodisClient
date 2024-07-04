@@ -1,6 +1,6 @@
 import ta
 
-from technical_indicators.indicators import IndicatorPrototype, IndicatorDescription
+from .indicators import IndicatorPrototype, IndicatorDescription
 
 
 class AccDistIndexIndicator(IndicatorPrototype):

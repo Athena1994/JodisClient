@@ -2,7 +2,7 @@ import pandas as pd
 import ta.momentum
 
 
-from technical_indicators.indicators import IndicatorPrototype, IndicatorDescription
+from .indicators import IndicatorPrototype, IndicatorDescription
 
 
 class AwesomeOscillatorIndicator(IndicatorPrototype):

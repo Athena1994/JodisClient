@@ -29,7 +29,7 @@ class TestUtils(unittest.TestCase):
         df = df.reset_index(drop=True)
 
         split_list = split_time_chunks(df)
-        df = mark_chunks(df, split_list, 3)
+        df = mark_chunks(df, split_list, 3, 0)
 
         self.assertEqual(df['chunk'][0],-1)
         self.assertEqual(df['chunk'][1], 0)
@@ -45,5 +45,24 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(df['chunk'][11], 3)
         self.assertEqual(df['chunk'][12], 3)
         self.assertEqual(df['chunk'][13], 3)
+        self.assertEqual(df['chunk'][14], -1)
+
+        split_list = split_time_chunks(df)
+        df = mark_chunks(df, split_list, 3, 2)
+
+        self.assertEqual(df['chunk'][0],-1)
+        self.assertEqual(df['chunk'][1], -1)
+        self.assertEqual(df['chunk'][2], -1)
+        self.assertEqual(df['chunk'][3], 0)
+        self.assertEqual(df['chunk'][4], 0)
+        self.assertEqual(df['chunk'][5], 0)
+        self.assertEqual(df['chunk'][6], 1)
+        self.assertEqual(df['chunk'][7], 1)
+        self.assertEqual(df['chunk'][8], 1)
+        self.assertEqual(df['chunk'][9], -1)
+        self.assertEqual(df['chunk'][10], -1)
+        self.assertEqual(df['chunk'][11], -1)
+        self.assertEqual(df['chunk'][12], -1)
+        self.assertEqual(df['chunk'][13], -1)
         self.assertEqual(df['chunk'][14], -1)
 

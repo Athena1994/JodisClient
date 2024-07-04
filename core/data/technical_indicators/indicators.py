@@ -2,7 +2,6 @@ import abc
 import copy
 import unittest
 from abc import abstractmethod
-from collections.abc import Sequence
 
 import pandas as pd
 import typing

@@ -29,7 +29,7 @@ class Indicator:
         self._skip_num = skip_num
         self._norm_factor = norm_factor
 
-    def apply(self, df: DataFrame) -> None:
+    def apply_to_df(self, df: DataFrame) -> None:
         self._fct(self._params, df)
 
     def get_skip_num(self) -> int:
@@ -91,29 +91,6 @@ class IndicatorPrototype:
         yield
 
 
-#def instantiate(descriptors: [IndicatorDesc],
-#                params: [[(str, float, float)]]):
-#    return [desc.create_indicator(param) for desc, param in zip(descriptors,
-#    params)]
-
-
-#def apply(df: pd.DataFrame,
-#          indicators: typing.List[Indicator]) -> tuple[pd.DataFrame,
-    #          typing.List[float]]:
-    #
-    # features = [ind.calculate(df) for ind in indicators]
-    # features = [ind if isinstance(ind, Sequence) else [ind]
-    #             for ind in features]
-    # features = [ind for seq in features for ind in seq]
-    # features_df = pd.DataFrame(features).T
-    #
-    # norm_fct = [ind.get_norm_factor() for ind in indicators]
-    # norm_fct = [fct if isinstance(fct, Sequence) else [fct]
-    #             for fct in norm_fct]
-    # norm_fct = [fct for seq in norm_fct for fct in seq]
-    #
-    # return features_df, norm_fct
-
 
 class DummyIndicator(IndicatorPrototype):
 
@@ -156,7 +133,7 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(3, indicator.get_norm_factor())
         df = DataFrame(columns=['w'])
         df['w'] = range(15)
-        indicator.apply(df)
+        indicator.apply_to_df(df)
 
         indicator_prototype = DummyIndicator(skip_f='a')
         desc = indicator_prototype.get_descriptor()
@@ -168,4 +145,4 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(3, indicator.get_norm_factor())
         df = DataFrame(columns=['w'])
         df['w'] = range(15)
-        indicator.apply(df)
+        indicator.apply_to_df(df)

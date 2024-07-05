@@ -1,8 +1,8 @@
 import random
 import pandas as pd
 
-from data.technical_indicators.indicators import IndicatorDescription
-from data.technical_indicators.collection import IndicatorCollection
+from .technical_indicators.indicators import IndicatorDescription
+from .technical_indicators.collection import IndicatorCollection
 
 class ChunkType:
     TRAINING = 0

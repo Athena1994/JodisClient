@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-from data.loader.data_loader import OHCLLoader
+from  .data_loader import OHCLLoader
 
 
 class SQLOHCLLoader(OHCLLoader):

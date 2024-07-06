@@ -1,12 +1,9 @@
-import abc
 import copy
-import unittest
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
-import pandas as pd
 import typing
 
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 """
     Specific indicator logic and parameter descriptions are wrapped in 
@@ -20,7 +17,7 @@ class Indicator:
     def __init__(self,
                  name: str,
                  params: dict,
-                 fct: typing.Callable[[dict, DataFrame], DataFrame],
+                 fct: typing.Callable[[dict, DataFrame], Series],
                  skip_num: int,
                  norm_factor: float):
         self._name = name
@@ -29,10 +26,18 @@ class Indicator:
         self._skip_num = skip_num
         self._norm_factor = norm_factor
 
-    def apply_to_df(self, df: DataFrame) -> None:
-        self._fct(self._params, df)
+    def apply_to_df(self, df: DataFrame, col: str, ix: int, cnt: int) -> None:
+        result = self._fct(self._params, df.iloc[ix: ix+cnt])
 
-    def get_skip_num(self) -> int:
+        if isinstance(result, Series):
+            df.loc[ix +self._skip_num-1:ix+cnt, col] = result[self._skip_num-1:]
+
+        elif isinstance(result, tuple):
+            df.loc[ix +self._skip_num-1:ix+cnt, col] = result[0][self._skip_num-1:]
+            for i, res in enumerate(result[1:]):
+                df.loc[ix +self._skip_num-1:ix+cnt, f"{col}_{i+2}"] = res[self._skip_num-1:]
+
+    def get_skip_cnt(self) -> int:
         return self._skip_num
 
     def get_norm_factor(self) -> float:
@@ -57,7 +62,7 @@ class IndicatorParameterDescription(typing.NamedTuple):
 class IndicatorDescription:
     def __init__(self, name: str,
                  params: typing.List[IndicatorParameterDescription],
-                 fct: typing.Callable[[dict, DataFrame], DataFrame],
+                 fct: typing.Callable[[dict, DataFrame], Series],
                  norm_factor: float = 1,
                  skip_field: str = None):
         self._name = name
@@ -80,69 +85,32 @@ class IndicatorDescription:
                          skip_cnt,
                          self._norm_factor)
 
-class IndicatorPrototype:
 
-    @abstractmethod
-    def get_descriptor(self) -> IndicatorDescription:
-        yield
-
-    @abstractmethod
-    def apply_to_df(self, params: dict, df: DataFrame) -> None:
-        yield
-
-
-
-class DummyIndicator(IndicatorPrototype):
-
-    def __init__(self, skip_f):
+class IndicatorPrototype(ABC):
+    def __init__(self,
+                 name: str,
+                 params: typing.Collection[IndicatorDescription] = [],
+                 skip_field: str = None,
+                 norm_factor: float = 1):
         super().__init__()
-
-        self.params = [
-                IndicatorParameterDescription("a", 0, 10, 4, 'int'),
-                IndicatorParameterDescription("b", -1, 1, 0.2, 'float'),
-            ]
-        self._skip_f = skip_f
-
-    def apply_to_df(self, params: dict, df: DataFrame):
-        df['v'] = params['b'] \
-                  + df['w'].rolling(window=params['a'])\
-                           .sum()
+        self._params = params
+        self._name = name
+        self._skip_field = skip_field
+        self._norm_factor = norm_factor
 
     def get_descriptor(self) -> IndicatorDescription:
         return IndicatorDescription(
-            "dummy",
-            params=self.params,
-            fct=self.apply_to_df,
-            norm_factor=3,
-            skip_field=self._skip_f
+            self._name,
+            self._params,
+            self.calculate,
+            self._norm_factor,
+            self._skip_field
         )
 
+    @abstractmethod
+    def calculate(self, params: dict, df: DataFrame) -> Series:
+        pass
 
-class TestIndicators(unittest.TestCase):
-    def test(self):
-        indicator_prototype = DummyIndicator(skip_f=None)
-        desc = indicator_prototype.get_descriptor()
-        self.assertListEqual(indicator_prototype.params,
-                             desc.get_parameter_descriptions())
-        params = dict([(p.name, p.default_val) for p in
-                       desc.get_parameter_descriptions()])
-        self.assertEqual(4, params['a'])
-        self.assertEqual(0.2, params['b'])
-        indicator = desc.create_indicator(params)
-        self.assertEqual(0, indicator.get_skip_num())
-        self.assertEqual(3, indicator.get_norm_factor())
-        df = DataFrame(columns=['w'])
-        df['w'] = range(15)
-        indicator.apply_to_df(df)
-
-        indicator_prototype = DummyIndicator(skip_f='a')
-        desc = indicator_prototype.get_descriptor()
-        self.assertListEqual(indicator_prototype.params,
-                             desc.get_parameter_descriptions())
-        params = {'a': 5, 'b': 0}
-        indicator = desc.create_indicator(params)
-        self.assertEqual(5, indicator.get_skip_num())
-        self.assertEqual(3, indicator.get_norm_factor())
-        df = DataFrame(columns=['w'])
-        df['w'] = range(15)
-        indicator.apply_to_df(df)
+    def get_parameter_descriptions(self) \
+        -> typing.Collection[IndicatorParameterDescription]:
+        return self._params

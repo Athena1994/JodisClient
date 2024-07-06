@@ -1,14 +1,12 @@
 import ta
 
-from .indicators import IndicatorPrototype, IndicatorDescription
+from .indicators import IndicatorParameterDescription, IndicatorPrototype, IndicatorDescription
 
 
 class AccDistIndexIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("AccDistIndexIndicator",
-                                    [],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("AccDistIndexIndicator")
 
     def calculate(self, params, df):
         return ta.volume.acc_dist_index(high=df['high'],
@@ -19,10 +17,11 @@ class AccDistIndexIndicator(IndicatorPrototype):
 
 class ChaikinMoneyFlowIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("ChaikinMoneyFlowIndicator",
-                                    [('window', 5, 30, 20, 'int')],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("ChaikinMoneyFlowIndicator", [
+                IndicatorParameterDescription('window', 5, 30, 20, 'int')
+            ], 
+            "window")
 
     def calculate(self, params, df):
         return ta.volume.chaikin_money_flow(high=df['high'],
@@ -34,10 +33,10 @@ class ChaikinMoneyFlowIndicator(IndicatorPrototype):
 
 class EaseOfMovementIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("EaseOfMovementIndicator",
-                                    [('window', 5, 20, 14, 'int')],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("EaseOfMovementIndicator", [
+                IndicatorParameterDescription('window', 5, 20, 14, 'int')
+            ], "window")
 
     def calculate(self, params, df):
         return ta.volume.ease_of_movement(high=df['high'],
@@ -48,10 +47,10 @@ class EaseOfMovementIndicator(IndicatorPrototype):
 
 class ForceIndexIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("ForceIndexIndicator",
-                                    [('window', 5, 20, 13, 'int')],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("ForceIndexIndicator", [
+                IndicatorParameterDescription('window', 5, 20, 13, 'int')
+            ], "window")
 
     def calculate(self, params, df):
         return ta.volume.force_index(volume=df['volume'],
@@ -61,10 +60,10 @@ class ForceIndexIndicator(IndicatorPrototype):
 
 class MFIIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("MFIIndicator",
-                                    [('window', 5, 20, 14, 'int')],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("MFIIndicator", [
+                IndicatorParameterDescription('window', 5, 20, 14, 'int')
+            ], "window")
 
     def calculate(self, params, df):
         return ta.volume.money_flow_index(high=df['high'],
@@ -76,10 +75,8 @@ class MFIIndicator(IndicatorPrototype):
 
 class NegativeVolumeIndexIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("NegativeVolumeIndexIndicator",
-                                    [],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("NegativeVolumeIndexIndicator", [], None)
 
     def calculate(self, params, df):
         return ta.volume.negative_volume_index(close=df['close'],
@@ -88,10 +85,8 @@ class NegativeVolumeIndexIndicator(IndicatorPrototype):
 
 class OnBalanceVolumeIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("OnBalanceVolumeIndicator",
-                                    [],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("OnBalanceVolumeIndicator", [], None)
 
     def calculate(self, params, df):
         return ta.volume.on_balance_volume(
@@ -101,10 +96,10 @@ class OnBalanceVolumeIndicator(IndicatorPrototype):
 
 class SMAEaseOfMovementIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("SMAEaseOfMovementIndicator",
-                                    [('window', 5, 20, 14, 'int')],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("SMAEaseOfMovementIndicator", [
+                IndicatorParameterDescription('window', 5, 20, 14, 'int')
+            ], "window")
 
     def calculate(self, params, df):
         return ta.volume.on_balance_volume(
@@ -117,10 +112,8 @@ class SMAEaseOfMovementIndicator(IndicatorPrototype):
 
 class VolumePriceTrendIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("VolumePriceTrendIndicator",
-                                    [],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("VolumePriceTrendIndicator", [], "window")
 
     def calculate(self, params, df):
         return ta.volume.volume_price_trend(
@@ -131,14 +124,14 @@ class VolumePriceTrendIndicator(IndicatorPrototype):
 
 class VolumeWeightedAveragePriceIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("VolumeWeightedAveragePrice",
-                                    [('window', 5, 20, 14, 'int')],
-                                    self.calculate)
+    def __init__(self):
+        super().__init__("VolumeWeightedAveragePrice", [
+                IndicatorParameterDescription('window', 5, 20, 14, 'int')
+            ], "window")
 
     def calculate(self, params, df):
         return ta.volume.volume_weighted_average_price(high=df['high'],
                                     low=df['low'],
                                     close=df['close'],
                                     volume=df['volume'],
-                                    window=params['volume'])
+                                    window=params['window'])

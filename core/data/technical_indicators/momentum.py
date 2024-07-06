@@ -2,18 +2,18 @@ import pandas as pd
 import ta.momentum
 
 
-from .indicators import IndicatorPrototype, IndicatorDescription
+from .indicators import IndicatorParameterDescription, IndicatorPrototype, IndicatorDescription
 
 
 class AwesomeOscillatorIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("AwsomeOscillator",
-                                    [('short_period', 1, 10, 5, 'int'),
-                              ('long_period', 10, 50, 34, 'int')],
-                                    self.calculate,
-                                    norm_factor=100,
-                                    skip_field='long_period')
+    def __init__(self):
+        super().__init__("AwsomeOscillator", [
+                IndicatorParameterDescription('short_period', 1, 10, 5, 'int'),
+                IndicatorParameterDescription('long_period', 10, 50, 34, 'int')
+            ],
+            norm_factor=100,
+            skip_field='long_period')
 
     def calculate(self, params, df):
         return ta.momentum.awesome_oscillator(high=df['high'],
@@ -24,14 +24,14 @@ class AwesomeOscillatorIndicator(IndicatorPrototype):
 
 class KAMAIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("KAMA",
-                                    [('window', 5, 20, 10, 'int'),
-                              ('pow1', 1, 10, 2, 'int'),
-                              ('pow2', 11, 40, 30, 'int')],
-                                    self.calculate,
-                                    norm_factor=-1,
-                                    skip_field='window')
+    def __init__(self):
+        super().__init__("KAMA", [
+                IndicatorParameterDescription('window', 5, 20, 10, 'int'),
+                IndicatorParameterDescription('pow1', 1, 10, 2, 'int'),
+                IndicatorParameterDescription('pow2', 11, 40, 30, 'int')
+            ],
+            norm_factor=1,
+            skip_field='window')
 
     def calculate(self, params, df):
         return ta.momentum.kama(df['close'],
@@ -42,15 +42,15 @@ class KAMAIndicator(IndicatorPrototype):
 
 class PercentagePriceOscillatorIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("PercentagePriceOscillator",
-                                    [('window_slow', 15, 40, 26, 'int'),
-                              ('window_fast', 5, 15, 12, 'int'),
-                              ('window_sign', 2, 20, 9, 'int')],
-                                    self.calculate,
-                                    norm_factor=(1, 1, 1),
-                                    skip_field='window_slow')
-
+    def __init__(self):
+        super().__init__("PercentagePriceOscillator", [
+                IndicatorParameterDescription('window_slow', 15, 40, 26, 'int'),
+                IndicatorParameterDescription('window_fast', 5, 15, 12, 'int'),
+                IndicatorParameterDescription('window_sign', 2, 20, 9, 'int')
+            ],
+            norm_factor=(1, 1, 1),
+            skip_field='window_slow')
+        
     def calculate(self, params, df):
         ppo = ta.momentum.ppo(close=df['close'],
                               window_slow=params['window_slow'],
@@ -66,20 +66,20 @@ class PercentagePriceOscillatorIndicator(IndicatorPrototype):
                                 window_slow=params['window_slow'],
                                 window_fast=params['window_fast'],
                                 window_sign=params['window_sign'],)
+        
         return ppo, ppo_hist, ppo_sig
-#        return pd.merge(pd.merge(ppo, ppo_hist, on='id'), ppo_sig, on='id')
 
 
 class PercentageVolumeOscillatorIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("PercentagePriceOscillator",
-                                    [('window_slow', 15, 40, 26, 'int'),
-                              ('window_fast', 5, 15, 12, 'int'),
-                              ('window_sign', 2, 20, 9, 'int')],
-                                    self.calculate,
-                                    norm_factor=(100, 100, 100),
-                                    skip_field='window_slow')
+    def __init__(self):
+        super().__init__("PercentagePriceOscillator", [
+                IndicatorParameterDescription('window_slow', 15, 40, 26, 'int'),
+                IndicatorParameterDescription('window_fast', 5, 15, 12, 'int'),
+                IndicatorParameterDescription('window_sign', 2, 20, 9, 'int')
+            ],
+            norm_factor=(100, 100, 100),
+            skip_field='window_slow')
 
     def calculate(self, params, df):
         ppo = ta.momentum.pvo(volume=df['volume'],
@@ -97,18 +97,16 @@ class PercentageVolumeOscillatorIndicator(IndicatorPrototype):
                                 window_fast=params['window_fast'],
                                 window_sign=params['window_sign'],)
         return ppo, ppo_hist, ppo_sig
-#        return pd.merge(pd.merge(ppo, ppo_hist, left_index=True, right_index=True),
-#                        ppo_sig, left_index=True, right_index=True)
 
 
 class ROCIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("ROC",
-                                    [('window', 5, 20, 12, 'int')],
-                                    self.calculate,
-                                    norm_factor=1,
-                                    skip_field='window')
+    def __init__(self):
+        super().__init__("ROC", [
+                IndicatorParameterDescription('window', 5, 20, 12, 'int')
+            ],
+            norm_factor=1,
+            skip_field='window')
 
     def calculate(self, params, df):
         return ta.momentum.roc(close=df['close'],
@@ -117,12 +115,12 @@ class ROCIndicator(IndicatorPrototype):
 
 class RSIIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("RSI",
-                                    [('window', 5, 20, 14, 'int')],
-                                    self.calculate,
-                                    norm_factor=100,
-                                    skip_field='window')
+    def __init__(self):
+        super().__init__("RSI", [
+                IndicatorParameterDescription('window', 5, 20, 14, 'int')
+            ], 
+            norm_factor=100,
+            skip_field='window')
 
     def calculate(self, params, df):
         return ta.momentum.rsi(df['close'],
@@ -131,13 +129,13 @@ class RSIIndicator(IndicatorPrototype):
 
 class StochasticOscillatorIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("StochasticOscillator",
-                                    [('window', 5, 20, 14, 'int'),
-                              ('smooth_window', 1, 10, 3, 'int')],
-                                    self.calculate,
-                                    norm_factor=(100, 100),
-                                    skip_field='window')
+    def __init__(self):
+        super().__init__("StochasticOscillator", [
+                IndicatorParameterDescription('window', 5, 20, 14, 'int'),
+                IndicatorParameterDescription('smooth_window', 1, 10, 3, 'int')
+            ],
+        norm_factor=(100, 100),
+        skip_field='window')
 
     def calculate(self, params, df):
         stoch = ta.momentum.stoch(high=df['high'],
@@ -153,19 +151,18 @@ class StochasticOscillatorIndicator(IndicatorPrototype):
                                  smooth_window=params['smooth_window'])
 
         return stoch, stoch_sig
-#        return pd.merge(stoch, stoch_sig, left_index=True, right_index=True)
 
 
 class StochRSIIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("StochRSI",
-                                    [('window', 5, 20, 14, 'int'),
-                              ('smooth1', 1, 10, 3, 'int'),
-                              ('smooth2', 1, 10, 3, 'int')],
-                                    self.calculate,
-                                    norm_factor=(1, 1, 1),
-                                    skip_field='window')
+    def __init__(self):
+        super().__init__("StochRSI", [
+                IndicatorParameterDescription('window', 5, 20, 14, 'int'),
+                IndicatorParameterDescription('smooth1', 1, 10, 3, 'int'),
+                IndicatorParameterDescription('smooth2', 1, 10, 3, 'int')
+            ],
+            norm_factor=(1, 1, 1),
+            skip_field='window')
 
     def calculate(self, params, df):
         srsi = ta.momentum.stochrsi(
@@ -188,13 +185,13 @@ class StochRSIIndicator(IndicatorPrototype):
 
 class TSIIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("TSI",
-                                    [('window_slow', 20, 30, 25, 'int'),
-                              ('window_fast', 10, 20, 13, 'int')],
-                                    self.calculate,
-                                    norm_factor=100,
-                                    skip_field='window_slow')
+    def __init__(self):
+        super().__init__("TSI", [
+                IndicatorParameterDescription('window_slow', 20, 30, 25, 'int'),
+                IndicatorParameterDescription('window_fast', 10, 20, 13, 'int')
+            ],
+            norm_factor=100,
+            skip_field='window_slow')
 
     def calculate(self, params, df):
         return ta.momentum.tsi(close=df['close'],
@@ -204,17 +201,17 @@ class TSIIndicator(IndicatorPrototype):
 
 class UltimateOscillatorIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("UltimateOscillator",
-                                    [('window1', 5, 10, 7, 'int'),
-                              ('window2', 11, 20, 14, 'int'),
-                              ('window3', 21, 35, 28, 'int'),
-                              ('weight1', 2, 5, 4.0, 'float'),
-                              ('weight2', 1, 3, 2.0, 'float'),
-                              ('weight3', 0.5, 2, 1.0, 'float')],
-                                    self.calculate,
-                                    norm_factor=100,
-                                    skip_field='window3')
+    def __init__(self):
+        super().__init__("UltimateOscillator", [
+                IndicatorParameterDescription('window1', 5, 10, 7, 'int'),
+                IndicatorParameterDescription('window2', 11, 20, 14, 'int'),
+                IndicatorParameterDescription('window3', 21, 35, 28, 'int'),
+                IndicatorParameterDescription('weight1', 2, 5, 4.0, 'float'),
+                IndicatorParameterDescription('weight2', 1, 3, 2.0, 'float'),
+                IndicatorParameterDescription('weight3', 0.5, 2, 1.0, 'float')
+            ],
+            norm_factor=100,
+            skip_field='window3')
 
     def calculate(self, params, df):
         return ta.momentum.ultimate_oscillator(high=df['high'],
@@ -230,12 +227,12 @@ class UltimateOscillatorIndicator(IndicatorPrototype):
 
 class WilliamsRIndicator(IndicatorPrototype):
 
-    def get_descriptor(self):
-        return IndicatorDescription("WilliamsRIndicator",
-                                    [('lbp', 5, 20, 14, 'int')],
-                                    self.calculate,
-                                    norm_factor=100,
-                                    skip_field='lbp')
+    def __init__(self):
+        super().__init__("WilliamsRIndicator", [
+                IndicatorParameterDescription('lbp', 5, 20, 14, 'int')
+            ],
+            norm_factor=100,
+            skip_field='lbp')
 
     def calculate(self, params, df):
         return ta.momentum.williams_r(high=df['high'],

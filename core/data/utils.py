@@ -75,6 +75,8 @@ def find_indicator_update_regions(data: pd.DataFrame, name: str, skip_cnt: int):
 
     fresh = name not in data.columns # indicator was not yet added to df
 
+    skip_cnt -= 1 # last sample in skip window is the first to be updated
+
     for (start_ix, frame_len) in split_list:
         if frame_len > skip_cnt:
             if fresh: 

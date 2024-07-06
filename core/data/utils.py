@@ -106,7 +106,8 @@ def apply_indicator(data: pd.DataFrame, required_indicator: dict):
             return str(x)
         raise Exception(f"Unknown type {type}")
  
-    if 'name' not in required_indicator or 'params' not in required_indicator:
+    if ('name' not in required_indicator) or \
+        ('params' not in required_indicator):
         raise Exception('Indicator must have a name and params field')
 
     indicator_desc = IndicatorCollection.get(required_indicator['name'])

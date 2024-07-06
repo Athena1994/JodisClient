@@ -1,38 +1,96 @@
 
 import unittest
 
+import numpy as np
 import pandas as pd
 
 from core.data.technical_indicators.indicators import IndicatorDescription, IndicatorParameterDescription, IndicatorPrototype
-from data.utils import find_indicator_update_regions, mark_chunks, split_time_chunks
-
-
-class DummyIndicator(IndicatorPrototype):
-
-    def __init__(self, skip_f):
-        super().__init__()
-
-        self.params = [
-                IndicatorParameterDescription("a", 0, 10, 4, 'int'),
-                IndicatorParameterDescription("b", -1, 1, 0.2, 'float'),
-            ]
-        self._skip_f = skip_f
-
-    def apply_to_df(self, params: dict, df: pd.DataFrame):
-        df.at[params[self._skip_f]:, hash(self)] = 0
-
-    def get_descriptor(self) -> IndicatorDescription:
-        return IndicatorDescription(
-            "dummy",
-            params=self.params,
-            fct=self.apply_to_df,
-            norm_factor=3,
-            skip_field=self._skip_f
-        )
+from core.data.technical_indicators.momentum import AwesomeOscillatorIndicator, PercentagePriceOscillatorIndicator
+from data.utils import apply_indicator, find_indicator_update_regions, mark_chunks, split_time_chunks
 
 
 class TestUtils(unittest.TestCase):
     
+    def test_apply_multi_indicator(self):
+        df = pd.DataFrame({'time': pd.date_range(start='1/1/2024', periods=30, freq='min')})
+        df['close'] = np.square(np.arange(0, 30))
+
+        params = {
+            'window_slow': 5, 
+            'window_fast': 3,
+            'window_sign': 2
+        }
+        ind_desc = {
+            'name': 'PPO', 
+            'params': params
+        }
+        ind = PercentagePriceOscillatorIndicator().get_descriptor().create_indicator(params)
+        col = hash(ind)
+
+        apply_indicator(df, ind_desc)
+
+        na_map = ~pd.isna(df[col])
+
+        for i in range(0, 4):
+            self.assertFalse(na_map[i])
+        for i in range(4, 30):
+            self.assertTrue(na_map[i])
+
+
+    def test_apply_indicator(self):
+        df = pd.concat([
+            pd.DataFrame({'time': pd.date_range(start='1/1/2024', periods=1, freq='min')}),
+            pd.DataFrame({'time': pd.date_range(start='1/10/2024', periods=10, freq='min')}),
+            pd.DataFrame({'time': pd.date_range(start='3/5/2024', periods=4, freq='min')})])
+        df = df.reset_index(drop=True)
+        df['high'] = np.square(np.arange(15, 30))
+        df['low'] = np.square(np.arange(15))
+        
+        params = {
+            'short_period': 1, 
+            'long_period': 3
+        }
+        ind_desc = {
+            'name': 'AwesomeOscillator', 
+            'params': params
+        }
+        ind = AwesomeOscillatorIndicator().get_descriptor().create_indicator(params)
+        col = hash(ind)
+
+        apply_indicator(df, ind_desc)
+
+        na_map = ~pd.isna(df[col])
+
+        self.assertFalse(na_map[0])
+        self.assertFalse(na_map[1])
+        self.assertFalse(na_map[2])
+        self.assertTrue(na_map[3])
+        self.assertTrue(na_map[4])
+        self.assertTrue(na_map[5])
+        self.assertTrue(na_map[6])
+        self.assertTrue(na_map[7])
+        self.assertTrue(na_map[8])
+        self.assertTrue(na_map[9])
+        self.assertTrue(na_map[10])
+        self.assertFalse(na_map[11])
+        self.assertFalse(na_map[12])
+        self.assertTrue(na_map[13])
+        self.assertTrue(na_map[14])
+
+        df.loc[0: 15, col] = 1
+        apply_indicator(df, ind_desc)
+        for i in range(15):
+            self.assertEqual(df.loc[i, col], 1)
+
+        df.loc[15] = (pd.to_datetime('2024-03-05 00:04:00'), 900, 200, None)
+        apply_indicator(df, ind_desc)
+
+        for i in range(15):
+            self.assertEqual(df.loc[i, col], 1)
+        self.assertTrue(pd.notna(df.loc[15, col]))
+
+
+
     def test_find_indicator_update_regions(self):
         df = pd.concat([
             pd.DataFrame({'time': pd.date_range(start='1/1/2024', periods=1, freq='min')}),
@@ -54,21 +112,23 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(update_list[1], (11, 4))
 
         # test with some values not null
+        df.at[2, indicator_hash] = 1
         df.at[3, indicator_hash] = 1
         df.at[4, indicator_hash] = 1
         df.at[5, indicator_hash] = 1
         df.at[6, indicator_hash] = 1
+        df.at[12, indicator_hash] = 1
         df.at[13, indicator_hash] = 1
         update_list = find_indicator_update_regions(df, indicator_hash, 2)
         self.assertEqual(len(update_list), 2)
-        self.assertEqual(update_list[0], (5, 6))
-        self.assertEqual(update_list[1], (12, 3))
+        self.assertEqual(update_list[0], (6, 5))
+        self.assertEqual(update_list[1], (13, 2))
 
         # test with all values not null in one time frame
         df.at[14, indicator_hash] = 1
         update_list = find_indicator_update_regions(df, indicator_hash, 2)
         self.assertEqual(len(update_list), 1)
-        self.assertEqual(update_list[0], (5, 6))
+        self.assertEqual(update_list[0], (6, 5))
 
 
     def test_split_time_chunks(self):

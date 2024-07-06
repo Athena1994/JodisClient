@@ -17,8 +17,14 @@ class IndicatorCollection:
     UltimateOscillator = UltimateOscillatorIndicator()
     WilliamsR = WilliamsRIndicator()
 
-    def get(self, name: str) -> IndicatorDescription:
-        return IndicatorCollection.__dict__[name].get_descriptor()
+    @staticmethod
+    def get(name: str) -> IndicatorDescription:
+        prototype = IndicatorCollection.__dict__.get(name)
+
+        if prototype is None:
+            raise Exception(f"Indicator {name} not found!")
+
+        return prototype.get_descriptor()
 
     @staticmethod
     def get_all() -> List[IndicatorDescription]:

@@ -30,15 +30,16 @@ class DynamicNN(nn.Module):
         layer_input = input_size
 
         for layer_desc in structure:
-            if layer_desc['type'] == 'ReLU':
+            if layer_desc['type'].upper() == 'ReLU'.upper():
                 layers.append(nn.ReLU())
-            if layer_desc['type'] == 'Dropout':
+            elif layer_desc['type'].upper() == 'Dropout'.upper():
                 layers.append(nn.Dropout(layer_desc['p']))
-            if layer_desc['type'] == 'linear':
+            elif layer_desc['type'].upper() == 'linear'.upper():
                 layers.append(nn.Linear(layer_input, 
                                         layer_desc['size']))
                 layer_input = layer_desc['size']
-
+            else:
+                raise ValueError(f"Unknown layer type: {layer_desc['type']}")
         return nn.Sequential(*layers)
 
     def __init__(self, config: dict):
@@ -55,7 +56,7 @@ class DynamicNN(nn.Module):
                             batch_first=True)
 
         self.classifier = self._create_layers(hidden_size, 
-                                         structure['output']),
+                                         structure['classifier'])
         
     
     def forward(self, x):

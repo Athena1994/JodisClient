@@ -58,7 +58,7 @@ def main():
     agent_config = _load_file(args.agent_config)
     training_config = _load_file(args.training_config)
 
-    dm = DataManager(data_config)
+    dm = DataManager(data_config, False)
     data_provider = dm.get_provider(agent_config)
 
     trainer = _instantiate_trainer(training_config, DynamicNN(agent_config))

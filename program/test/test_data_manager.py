@@ -78,7 +78,7 @@ class TestDataManager(unittest.TestCase):
                 "ohcl": True
             }]
         # assert that DataManager is initialized according to conf
-        dm = DataManager(mock_conf)
+        dm = DataManager(mock_conf, False)
         self.assertEqual(len(dm._assets), 1)
         self.assertEqual(len(dm._sources), 1)
         asset = Asset('bar', 'interval', 'foo')
@@ -98,7 +98,7 @@ class TestDataManager(unittest.TestCase):
 
 
         # assert a fresh DataManager initializes from cache
-        dm = DataManager(mock_conf)
+        dm = DataManager(mock_conf, False)
         dm._sources['foo'].get = mock_sql_get
         self.assertTrue(asset in dm._assets)
         self.assertEqual(len(dm._assets[asset]), 10)

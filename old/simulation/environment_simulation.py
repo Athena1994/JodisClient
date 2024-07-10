@@ -10,7 +10,7 @@ from trading.wallet import Wallet
 
 import ai
 from ai.reward_calculation import RewardEvaluator
-from ai.replay_buffer import ReplayBuffer
+from core.qlearning.replay_buffer import ReplayBuffer
 from ai.utils import Actions
 
 

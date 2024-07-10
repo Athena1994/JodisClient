@@ -8,11 +8,11 @@ from typing import NamedTuple, List
 import numpy as np
 import torch.optim
 
-from ai.agent import SimpleIndicatorAgent
-from ai.q_arbiter import QArbiter, DQNWrapper
+from old.agent import SimpleIndicatorAgent
+from core.qlearning.q_arbiter import QSigArbiter, DQNWrapper
 from ai.q_nn import QNN
-from ai.replay_buffer import ReplayBuffer
-from ai.trainer import DQNTrainer
+from core.qlearning.replay_buffer import ReplayBuffer
+from core.qlearning.trainer import DQNTrainer
 from old.chunk_type import ChunkType
 from old.chunks import DataChunk
 from data.utils import split_df
@@ -262,7 +262,7 @@ class TrainingManager:
         nn = QNN()
 
         q_function = DeepQFunction(DQNWrapper(nn))
-        arbiter = QArbiter(q_function, random_exploration_chance)
+        arbiter = QSigArbiter(q_function, random_exploration_chance)
         agent = SimpleIndicatorAgent(arbiter)
         replay_buffer = ReplayBuffer(replay_buffer_size)
         optimizer = torch.optim.Adam(nn.parameters(), learning_rate)

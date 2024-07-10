@@ -15,8 +15,8 @@ class DataProvider:
         return pd.read_csv(file)
 
     @staticmethod
-    def _normalize_col(df: pd.DataFrame, col: str, strategy: str) \
-        :
+    def _normalize_col(df: pd.DataFrame, col: str, strategy: str)\
+        -> Tuple[pd.DataFrame, dict]:
         if strategy == 'none':
             return df, {'type': 'none'}
         elif strategy == 'warn':
@@ -133,7 +133,7 @@ class DataProvider:
         """Returns the next chunk of data and the original data."""
         def __next__(self) -> 'ChunkReader':
             if self._ix == len(self._chunk_ids):
-                raise StopIteration
+                return None
 
             chunk_id = self._chunk_ids[self._ix]
             chunk_ix = self._chunk_ixs[chunk_id]
@@ -166,10 +166,9 @@ class ChunkReader:
     def __iter__(self):
         return self
     
-    def __next__(self) -> Tuple[torch.Tensor, pd.DataFrame]:
+    def __next__(self) -> Tuple[torch.Tensor, pd.Series]:
         if self._ix + self._window_size > len(self._chunk):
-            raise StopIteration
-
+            return None
         tensor_state = self._chunk[self._ix:self._ix+self._window_size]
         df_state = self._df.iloc[self._ix+self._window_size-1]
 

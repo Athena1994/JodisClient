@@ -1,5 +1,7 @@
 from typing import List
 
+from core.data.technical_indicators.indicators import Indicator
+
 from .momentum import *
 
 
@@ -32,3 +34,8 @@ class IndicatorCollection:
                 for v, m in vars(IndicatorCollection).items()
                 if not (v.startswith('_') or callable(m))]
 
+    @staticmethod
+    def get_from_cfg(cfg: dict) -> Indicator:
+        if 'name' not in cfg or 'params' not in cfg:
+            raise ValueError("Indicator config must contain 'name' and 'params' fields!")
+        return IndicatorCollection.get(cfg['name']).create_indicator(cfg['params'])

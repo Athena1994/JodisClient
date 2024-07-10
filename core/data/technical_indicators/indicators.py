@@ -1,6 +1,7 @@
 import copy
 from abc import ABC, abstractmethod
 
+import json
 import typing
 
 from pandas import DataFrame, Series
@@ -27,15 +28,24 @@ class Indicator:
         self._norm_factor = norm_factor
 
     def apply_to_df(self, df: DataFrame, col: str, ix: int, cnt: int) -> None:
+        def normalize(data: Series, factor: float) -> Series:
+            if factor == -1:
+                return data
+            return data / factor
+        def set_series(data: Series, df: DataFrame, col: str, i: int, l: int):
+            df.loc[i + self._skip_num -1: i + l, col] = data[self._skip_num-1:]
+
         result = self._fct(self._params, df.iloc[ix: ix+cnt])
 
-        if isinstance(result, Series):
-            df.loc[ix +self._skip_num-1:ix+cnt, col] = result[self._skip_num-1:]
-
+        if isinstance(result, Series):     
+            set_series(normalize(result, self._norm_factor), 
+                       df, col, ix, cnt)
         elif isinstance(result, tuple):
-            df.loc[ix +self._skip_num-1:ix+cnt, col] = result[0][self._skip_num-1:]
+            set_series(normalize(result[0], self._norm_factor[0]), 
+                       df, col, ix, cnt)
             for i, res in enumerate(result[1:]):
-                df.loc[ix +self._skip_num-1:ix+cnt, f"{col}_{i+2}"] = res[self._skip_num-1:]
+                set_series(normalize(res, self._norm_factor[i+1]), 
+                           df, f"{col}_{i+2}", ix, cnt)
 
     def get_skip_cnt(self) -> int:
         return self._skip_num
@@ -44,7 +54,8 @@ class Indicator:
         return self._norm_factor
     
     def __hash__(self):
-        return hash(self._name) + hash(tuple(self._params.items()))
+        return hash(self._name) + hash(json.dumps(self._params, sort_keys=True))
+
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, Indicator):
             return False
@@ -85,6 +96,11 @@ class IndicatorDescription:
                          skip_cnt,
                          self._norm_factor)
 
+    def get_value_cnt(self) -> int:
+        if isinstance(self._norm_factor, tuple):
+            return len(self._norm_factor)
+        else:
+            return 1
 
 class IndicatorPrototype(ABC):
     def __init__(self,

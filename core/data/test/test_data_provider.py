@@ -73,9 +73,9 @@ class TestDataProvider(unittest.TestCase):
         val_it = data_provider.get_iterator('val')
         test_it = data_provider.get_iterator('test')
 
-        tr_list = list(tr_it)
-        val_list = list(val_it)
-        test_list = list(test_it)
+        tr_list = [f.get_chunk()[0] for f in tr_it]
+        val_list = [f.get_chunk()[0] for f in val_it]
+        test_list = [f.get_chunk()[0] for f in test_it]
 
         self.assertEqual(len(tr_list), 3)
         self.assertEqual(len(val_list), 2)
@@ -127,8 +127,81 @@ class TestDataProvider(unittest.TestCase):
                 ['2021-01-20', 20, 6, 2, 2],
                 ['2021-01-21', 21, 6, 2, 1],])
 
+        data_save = df.copy()
+
         data_provider = DataProvider(df, ['value', 'dummy'], 'zscore')
+
+        for col in ['value', 'dummy']:
+            self.assertTrue(data_save[col].equals(df[col]))
+
+        normalization_info = data_provider.get_normalization_info()
+
+        it = data_provider.get_iterator('tr')
         
-        df = data_provider._df
+        def denormalize(data: float, col: str) -> float:
+            meta = normalization_info[col]
+            return data * meta['std'] + meta['mean']
+
+        chunk = next(it).get_chunk()[0]
+        self.assertAlmostEqual(denormalize(chunk[0, 0].item(), 'value'), 5, 4)
+        self.assertAlmostEqual(denormalize(chunk[0, 1].item(), 'dummy'), 17, 4)
+        self.assertAlmostEqual(denormalize(chunk[1, 0].item(), 'value'), 6, 4)
+        self.assertAlmostEqual(denormalize(chunk[1, 1].item(), 'dummy'), 16, 4)
+        self.assertAlmostEqual(denormalize(chunk[2, 0].item(), 'value'), 7, 4)
+        self.assertAlmostEqual(denormalize(chunk[2, 1].item(), 'dummy'), 15, 4)
+        
+        chunk = next(it).get_chunk()[0]
+        self.assertAlmostEqual(denormalize(chunk[0, 0].item(), 'value'), 8, 4)
+        self.assertAlmostEqual(denormalize(chunk[0, 1].item(), 'dummy'), 14, 4)
+        self.assertAlmostEqual(denormalize(chunk[1, 0].item(), 'value'), 9, 4)
+        self.assertAlmostEqual(denormalize(chunk[1, 1].item(), 'dummy'), 13, 4)
+
+        chunk = next(it).get_chunk()[0]
+        self.assertAlmostEqual(denormalize(chunk[0, 0].item(), 'value'), 16, 4)
+        self.assertAlmostEqual(denormalize(chunk[0, 1].item(), 'dummy'), 6, 4)
+
+    def test_chunk_reader(self):
+ 
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range(start='1/1/2021', periods=100),
+                "up": range(100),
+                "down": range(100, 0, -1),
+                "chunk": [i // 10 for i in range(100)],
+                "chunk_type": [0]*80 + [1]*10 + [2]*10, 
+            }
+        )
+
+        data_provider = DataProvider(df, ['up', 'down'], 'zscore', 3)
+        self.assertEqual(data_provider.get_chunk_cnt('tr'), 8)
+        self.assertEqual(data_provider.get_chunk_cnt('val'), 1)
+        self.assertEqual(data_provider.get_chunk_cnt('test'), 1)
+
+        chunk_it = data_provider.get_iterator('tr')
+        
+        chunk_reader = next(chunk_it)
+
+        tensor, df = chunk_reader.get_chunk()
+
+        self.assertTrue(isinstance(tensor, torch.Tensor))
+        self.assertTrue(isinstance(df, pd.DataFrame))
+        self.assertEqual(len(df), 10)
+        self.assertEqual(len(tensor), 10)
+
+        for i, (t, d) in enumerate(chunk_reader):
+            self.assertTrue(isinstance(t, torch.Tensor))
+            self.assertTrue(isinstance(d, pd.Series))
+            self.assertEqual(len(t), 3)
+            self.assertEqual(d['up'], i+2)
+            self.assertEqual(d['down'], 100-i-2)
 
 
+        i = 12
+        for r in chunk_it:
+            self.assertEqual(len(r), 8)
+            for t, d in r:
+                self.assertEqual(len(t), 3)
+                self.assertEqual(d['up'], i)
+                self.assertEqual(d['down'], 100-i)
+                i += 1 
+            i += 2

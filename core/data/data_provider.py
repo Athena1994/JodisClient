@@ -52,6 +52,8 @@ class DataProvider:
                  normalization_strategy: str, 
                  window_size: int = 1):
 
+        self._window_size = window_size
+
         self._df_original = df
         self._df_normalized = df.copy()
 
@@ -98,7 +100,8 @@ class DataProvider:
                                     self._df_original,
                                     self._required_columns,
                                     self._chunk_ids[chunk_type],
-                                    self._chunk_ixs)
+                                    self._chunk_ixs,
+                                    self._window_size)
 
     def get_chunk_cnt(self, chunk_type: str) -> int:
         if chunk_type not in ['tr', 'val', 'test']:
@@ -122,11 +125,13 @@ class DataProvider:
             self._chunk_ids = ids
             self._required_columns = required_columns
             self._ix = 0
+            self._window_size = window_size
 
         def __iter__(self):
             return self
 
-        def __next__(self):
+        """Returns the next chunk of data and the original data."""
+        def __next__(self) -> 'ChunkReader':
             if self._ix == len(self._chunk_ids):
                 raise StopIteration
 
@@ -138,4 +143,36 @@ class DataProvider:
             df_n = self._df_normalized.iloc[chunk_ix[0]:chunk_ix[0]+chunk_ix[1]][self._required_columns]
             df_o = self._df_original.iloc[chunk_ix[0]:chunk_ix[0]+chunk_ix[1]]
 
-            return torch.tensor(df.values, dtype=torch.float32)
+            return ChunkReader(torch.tensor(df_n.values, dtype=torch.float32),
+                               df_o, self._window_size)
+
+class ChunkReader:
+    def __init__(self, 
+                chunk: torch.Tensor, 
+                df: pd.DataFrame,
+                window_size: int) -> None:
+        self._df = df
+        self._chunk = chunk
+        self._window_size = window_size
+
+        self._ix = 0
+
+    def get_chunk(self) -> Tuple[torch.Tensor, pd.DataFrame]:
+        return self._chunk, self._df
+
+    def __len__(self) -> int:
+        return len(self._chunk) - self._window_size + 1
+
+    def __iter__(self):
+        return self
+    
+    def __next__(self) -> Tuple[torch.Tensor, pd.DataFrame]:
+        if self._ix + self._window_size > len(self._chunk):
+            raise StopIteration
+
+        tensor_state = self._chunk[self._ix:self._ix+self._window_size]
+        df_state = self._df.iloc[self._ix+self._window_size-1]
+
+        self._ix += 1
+
+        return tensor_state, df_state

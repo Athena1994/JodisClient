@@ -14,8 +14,11 @@ class DynamicNN(nn.Module):
             if data['ohcl']:
                 size += 4
 
+            if data['volume']:
+                size += 1
+
             for indicator in data['indicators']:
-                ind_desc = IndicatorCollection.get(indicator)
+                ind_desc = IndicatorCollection.get(indicator['name'])
                 size += ind_desc.get_value_cnt()
 
         return size        
@@ -48,10 +51,10 @@ class DynamicNN(nn.Module):
 
         self.LSTM = nn.LSTM(input_size=input_size, 
                             hidden_size=hidden_size, 
-                            num_layers=structure['num_layers'], 
+                            num_layers=structure['LSTM']['num_layers'], 
                             batch_first=True)
 
-        self.classifier = self.create_layers(hidden_size, 
+        self.classifier = self._create_layers(hidden_size, 
                                          structure['output']),
         
     

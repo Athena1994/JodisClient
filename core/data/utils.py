@@ -39,27 +39,35 @@ def split_time_chunks(df: pd.DataFrame) -> list[tuple[int, int]]:
     return split_list
 
 
-def mark_chunks(df: pd.DataFrame, split_list: list[tuple[int, int]],
-                chunk_size: int, skip_cnt: int) -> pd.DataFrame:
-
-    df['chunk'] = -1
-    chunk_id = 0
+def assign_chunk_ids(df: pd.DataFrame, split_list: list[tuple[int, int]],
+                chunk_size: int, skip_cnt: int,
+                start_id = 0) -> pd.DataFrame:
+    chunk_id = start_id
     for start_ix, block_len in split_list:
+        df.loc[start_ix: start_ix + block_len -1, 'chunk'] = -1
         for i in range((block_len-skip_cnt) // chunk_size):            
-            df.loc[(skip_cnt + start_ix + i*chunk_size):(skip_cnt + start_ix + (i+1)*chunk_size-1), 
-                   'chunk'] = chunk_id
+            chunk_ix = start_ix + skip_cnt + i*chunk_size
+            df.loc[chunk_ix: chunk_ix + chunk_size-1, 'chunk'] = chunk_id
             chunk_id += 1
+    df.loc[df['chunk'].isna(), 'chunk'] = -1
     return df
 
 def training_split(chunk_cnt: int, 
                    tr_val_ratio: float, 
-                   test_chunk_cnt: int) -> list[int]:
+                   test_chunk_cnt: int,
+                   current_cnts: tuple = None) -> list[int]:
     # create list with chunk_cnt elements with values 0, 1, 2
     # 0: training, 1: validation, 2: test
-    # the values should be randomly distributed with a ratio of tr_val_ratio and a total of test_chunk_cnt test chunks
-    tr_cnt = chunk_cnt - test_chunk_cnt
-    val_cnt = int(tr_cnt * tr_val_ratio)
-    tr_cnt -= val_cnt
+    # the values should be randomly distributed with a ratio of tr_val_ratio 
+    # and a total of test_chunk_cnt test chunks
+    val_cnt = chunk_cnt - test_chunk_cnt
+    tr_cnt = int((val_cnt * tr_val_ratio)+0.5)
+    val_cnt -= tr_cnt
+
+    if current_cnts != None:
+        tr_cnt -= current_cnts[0]
+        val_cnt -= current_cnts[1]
+        test_chunk_cnt -= current_cnts[2]
 
     split_list = [ChunkType.TRAINING] * tr_cnt
     split_list += [ChunkType.VALIDATION] * val_cnt
@@ -110,18 +118,20 @@ def apply_indicator(data: pd.DataFrame, required_indicator: dict):
         ('params' not in required_indicator):
         raise Exception('Indicator must have a name and params field')
 
-    indicator_desc = IndicatorCollection.get(required_indicator['name'])
-    descriptors = indicator_desc.get_parameter_descriptions()
+    indicator = IndicatorCollection.get_from_cfg(required_indicator)
 
-    indicator_params = {}
+    # indicator_desc = IndicatorCollection.get(required_indicator['name'])
+    # descriptors = indicator_desc.get_parameter_descriptions()
 
-    for d in descriptors:
-        if d.name not in required_indicator['params']:
-            raise Exception('Indicator must have all required parameters!'
-                            f"(Missing parameter {d.name})")
-        indicator_params[d.name] = convert(required_indicator['params'][d.name], d.data_type)       
+    # indicator_params = {}
 
-    indicator = indicator_desc.create_indicator(indicator_params)
+    # for d in descriptors:
+    #     if d.name not in required_indicator['params']:
+    #         raise Exception('Indicator must have all required parameters!'
+    #                         f"(Missing parameter {d.name})")
+    #     indicator_params[d.name] = convert(required_indicator['params'][d.name], d.data_type)       
+
+    # indicator = indicator_desc.create_indicator(indicator_params)
 
     for region in find_indicator_update_regions(data, 
                                                 hash(indicator), 

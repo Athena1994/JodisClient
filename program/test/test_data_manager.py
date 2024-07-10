@@ -150,18 +150,19 @@ class TestDataManager(unittest.TestCase):
         dm.update_indicators(value_conf)
         
         ind = IndicatorCollection.get('AwesomeOscillator').create_indicator({'short_period': 2, 'long_period': 4})
-        self.assertTrue(hash(ind) in dm._assets[asset])
-        self.assertTrue(dm._assets[asset].loc[:2, hash(ind)].isna().all())
-        self.assertTrue((~dm._assets[asset].loc[3:, hash(ind)].isna()).all())
+        ind_name = ind.get_unique_id()
+        self.assertTrue(ind_name in dm._assets[asset])
+        self.assertTrue(dm._assets[asset].loc[:2, ind_name].isna().all())
+        self.assertTrue((~dm._assets[asset].loc[3:, ind_name].isna()).all())
 
         dm.fetch_assets()
         self.assertEqual(len(dm._assets[asset]), 28)
-        self.assertTrue((~dm._assets[asset].loc[3:18, hash(ind)].isna()).all())
-        self.assertTrue(dm._assets[asset].loc[19:, hash(ind)].isna().all())
+        self.assertTrue((~dm._assets[asset].loc[3:18, ind_name].isna()).all())
+        self.assertTrue(dm._assets[asset].loc[19:, ind_name].isna().all())
 
         dm.update_indicators(value_conf)
-        self.assertTrue(dm._assets[asset].loc[:2, hash(ind)].isna().all())
-        self.assertTrue((~dm._assets[asset].loc[3:, hash(ind)].isna().all()))
+        self.assertTrue(dm._assets[asset].loc[:2, ind_name].isna().all())
+        self.assertTrue((~dm._assets[asset].loc[3:, ind_name].isna().all()))
 
 
 

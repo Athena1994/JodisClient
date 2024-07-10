@@ -196,7 +196,8 @@ def get_required_cols(agent_cfg: dict) -> List[Tuple[Asset, List[int]]]:
             cols.append('low')
 
         for indicator in data_desc['indicators']:
-            cols.append(hash(IndicatorCollection.get_from_cfg(indicator)))
+            ind = IndicatorCollection.get_from_cfg(indicator)
+            cols.append(ind.get_unique_id())
         asset_lists.append((Asset.from_config(data_desc['asset']), cols))
 
     return asset_lists

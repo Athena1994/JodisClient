@@ -53,6 +53,9 @@ class Indicator:
     def get_norm_factor(self) -> float:
         return self._norm_factor
     
+    def get_unique_id(self) -> str:
+        return f"{self._name}_{json.dumps(self._params, sort_keys=True)}"
+
     def __hash__(self):
         return hash(self._name) + hash(json.dumps(self._params, sort_keys=True))
 

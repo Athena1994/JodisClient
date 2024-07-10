@@ -25,7 +25,7 @@ class TestUtils(unittest.TestCase):
             'params': params
         }
         ind = PercentagePriceOscillatorIndicator().get_descriptor().create_indicator(params)
-        col = hash(ind)
+        col = ind.get_unique_id()
 
         apply_indicator(df, ind_desc)
 
@@ -55,7 +55,7 @@ class TestUtils(unittest.TestCase):
             'params': params
         }
         ind = AwesomeOscillatorIndicator().get_descriptor().create_indicator(params)
-        col = hash(ind)
+        col = ind.get_unique_id()
 
         apply_indicator(df, ind_desc)
 

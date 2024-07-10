@@ -120,20 +120,9 @@ def apply_indicator(data: pd.DataFrame, required_indicator: dict):
 
     indicator = IndicatorCollection.get_from_cfg(required_indicator)
 
-    # indicator_desc = IndicatorCollection.get(required_indicator['name'])
-    # descriptors = indicator_desc.get_parameter_descriptions()
-
-    # indicator_params = {}
-
-    # for d in descriptors:
-    #     if d.name not in required_indicator['params']:
-    #         raise Exception('Indicator must have all required parameters!'
-    #                         f"(Missing parameter {d.name})")
-    #     indicator_params[d.name] = convert(required_indicator['params'][d.name], d.data_type)       
-
-    # indicator = indicator_desc.create_indicator(indicator_params)
+    ind_name = indicator.get_unique_id()
 
     for region in find_indicator_update_regions(data, 
-                                                hash(indicator), 
+                                                ind_name, 
                                                 indicator.get_skip_cnt()):
-        indicator.apply_to_df(data, hash(indicator), region[0], region[1])
+        indicator.apply_to_df(data, ind_name, region[0], region[1])

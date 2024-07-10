@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-from  .data_loader import OHCLLoader
+from core.data.loader.ohcl_loader import OHCLLoader
 
 
 class SQLOHCLLoader(OHCLLoader):
@@ -31,3 +31,11 @@ class SQLOHCLLoader(OHCLLoader):
 
             return df
 
+    @staticmethod
+    def from_config(config: dict):
+        missing_keys = [k for k in config if k not in ['user', 'pw', 'host', 'db', 'table']]
+        if len(missing_keys) != 0:
+            raise ValueError('Invalid config! (missing keys: {missing_keys})')
+
+        return SQLOHCLLoader(config['user'], config['pw'],
+                             config['host'], config['db'], config['table'])

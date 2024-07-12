@@ -7,25 +7,9 @@
     state, and sample specific information (e.g. current candle) which can 
     be accessed by writing "{var_name}" in the command string.   
 
-    sample specific information:
-        example:
-            - "buy_price": float 
-                -> price at which the asset can be bought
-
-            - "sell_price": float 
-                -> price at which the asset can be sold
-            
-            - "action": str 
-                -> action to be evaluated
-            
-            - "valid_action": bool 
-                -> if the action is valid
-
-            - "previous_wallet_value": float 
-                -> value of the wallet previous to the action
-
-            - "current_wallet_value": float 
-                -> current value of the wallet
+    Context Data:
+        A program may provide context data with accessible to the command
+        variables to the execution command of a processor.
 
     Value access:
         stored variables can be accessed by setting the variable name in 

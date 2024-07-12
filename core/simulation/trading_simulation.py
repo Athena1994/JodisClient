@@ -41,9 +41,8 @@ class TradingSimulation:
         or self._mode == self.Modes.RESET_AFTER_SELL:
             self._reset_state()
 
-        self._sample_iterator = next(self._chunk_iterator)
-
         self._episode += 1
+        self._sample_iterator = next(self._chunk_iterator, None)
 
         return self._sample_iterator is not None
 
@@ -99,15 +98,18 @@ class TradingSimulation:
 
 
     def get_next_state(self) -> Tuple[torch.Tensor, pd.Series, dict, int]:
+     
         if self._sample_iterator is None:
             raise RuntimeError("Session not started.")
-        
-        res = next(self._sample_iterator)
-        if res is None:
+
+        try:
+            return (*next(self._sample_iterator), 
+                    self._episode_state, 
+                    self._episode)
+        except StopIteration:
             if not self._next_episode():
                 return None
             return self.get_next_state()
-        return *res, self._episode_state, self._episode
 
         
 

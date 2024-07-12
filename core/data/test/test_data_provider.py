@@ -73,9 +73,17 @@ class TestDataProvider(unittest.TestCase):
         val_it = data_provider.get_iterator('val')
         test_it = data_provider.get_iterator('test')
 
-        tr_list = [f.get_chunk()[0] for f in tr_it]
-        val_list = [f.get_chunk()[0] for f in val_it]
-        test_list = [f.get_chunk()[0] for f in test_it]
+        self.assertIsNotNone(tr_it)
+        self.assertIsNotNone(val_it)
+        self.assertIsNotNone(test_it)
+
+        self.assertEqual(len(tr_it), 3)
+        self.assertEqual(len(val_it), 2)
+        self.assertEqual(len(test_it), 2)
+
+        tr_list = [chunk_reader.get_chunk()[0] for chunk_reader in tr_it]
+        val_list = [chunk_reader.get_chunk()[0] for chunk_reader in val_it]
+        test_list = [chunk_reader.get_chunk()[0] for chunk_reader in test_it]
 
         self.assertEqual(len(tr_list), 3)
         self.assertEqual(len(val_list), 2)

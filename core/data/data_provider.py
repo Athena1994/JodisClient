@@ -130,10 +130,13 @@ class DataProvider:
         def __iter__(self):
             return self
 
+        def __len__(self) -> int:
+            return len(self._chunk_ids)
+
         """Returns the next chunk of data and the original data."""
         def __next__(self) -> 'ChunkReader':
             if self._ix == len(self._chunk_ids):
-                return None
+                raise StopIteration()
 
             chunk_id = self._chunk_ids[self._ix]
             chunk_ix = self._chunk_ixs[chunk_id]
@@ -168,7 +171,7 @@ class ChunkReader:
     
     def __next__(self) -> Tuple[torch.Tensor, pd.Series]:
         if self._ix + self._window_size > len(self._chunk):
-            return None
+            raise StopIteration()
         tensor_state = self._chunk[self._ix:self._ix+self._window_size]
         df_state = self._df.iloc[self._ix+self._window_size-1]
 

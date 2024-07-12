@@ -1,6 +1,7 @@
 
 
 
+import copy
 from dataclasses import dataclass
 from typing import Tuple
 
@@ -8,6 +9,13 @@ import pandas as pd
 import torch
 from core.data.data_provider import DataProvider
 from core.qlearning.replay_buffer import Experience
+
+@dataclass
+class State:
+    sample: torch.Tensor
+    context: pd.Series
+    simulation: dict
+    episode: int
 
 class TradingSimulation:
 
@@ -28,6 +36,9 @@ class TradingSimulation:
         self._episode = 0
         self._episode_state = None
         self._mode = None
+        self.is_training = False
+
+        self._last_sample = None
 
     def _reset_state(self):
         self._episode_state = {
@@ -50,8 +61,10 @@ class TradingSimulation:
 
         self._episode = -1
 
+        self.is_training = False
         if type == 'tr':
             self._mode = self.Modes.RESET_AFTER_SELL
+            self.is_training = True
         elif type == 'val':
             self._mode = self.Modes.RESET_EACH_EPISODE
         else:
@@ -66,7 +79,8 @@ class TradingSimulation:
     def get_price(current_candle: pd.Series) -> float:
         return current_candle['close']
 
-    def buy(self, current_candle: pd.Series) -> bool:
+
+    def buy(self, current_candle: pd.Series) -> float:
         money = self._episode_state['money']
         if money == 0:
             return None
@@ -79,7 +93,7 @@ class TradingSimulation:
 
         return amount
         
-    def sell(self, current_candle: pd.Series) -> None:
+    def sell(self, current_candle: pd.Series) -> float:
         asset = self._episode_state['asset']
         if asset == 0:
             return None
@@ -97,19 +111,21 @@ class TradingSimulation:
 
 
 
-    def get_next_state(self) -> Tuple[torch.Tensor, pd.Series, dict, int]:
+    def get_next_state(self) -> State:
      
         if self._sample_iterator is None:
             raise RuntimeError("Session not started.")
 
         try:
-            return (*next(self._sample_iterator), 
-                    self._episode_state, 
-                    self._episode)
+            self._last_sample = next(self._sample_iterator)
+            return self.get_current_state()
+             
         except StopIteration:
             if not self._next_episode():
                 return None
             return self.get_next_state()
 
-        
-
+    def get_current_state(self) -> State:
+        return State(*self._last_sample,
+                     copy.deepcopy(self._episode_state), 
+                     self._episode)

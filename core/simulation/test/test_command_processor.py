@@ -205,6 +205,7 @@ class TestCommands(unittest.TestCase):
                 {"!": "store", "name": "a", "value": "1 + 1"},
                 {"!": "store", "name": "b", "value": "{a} + 1"},
                 {"!": "store", "name": "c", "value": "{b} + {a}"},
+                {"!": "store", "name": "test"}
             ]
         }
         proc = CommandProcessor(program)
@@ -212,9 +213,11 @@ class TestCommands(unittest.TestCase):
         self.assertTrue('a' in proc._working_env)
         self.assertTrue('b' in proc._working_env)
         self.assertTrue('c' in proc._working_env)
+        self.assertTrue('test' in proc._working_env)
         self.assertEqual(proc._working_env['a'], 2)
         self.assertEqual(proc._working_env['b'], 3)
         self.assertEqual(proc._working_env['c'], 5)
+        self.assertEqual(proc._working_env['test'], True)
 
     def test_clear_command(self):
         command = CommandFactory.create_command({"!": "clear", "name": "a"})
@@ -321,3 +324,37 @@ class TestCommands(unittest.TestCase):
         proc = CommandProcessor(program)
         self.assertEqual(proc.execute({'b': 0}), 0)
         self.assertEqual(proc.execute({'b': 1}), 2)
+
+
+    def test_switch_command(self):
+        patch_mock_create()
+
+        command = CommandFactory.create_command(
+            {
+                "!": "switch", 
+                "condition": "1", 
+                "cases": [
+                    {"value": "1", "then": [{"!": "dummy"}]}
+                ]
+            }
+        )
+        self.assertTrue(isinstance(command, SwitchCommand))
+        self.assertEqual(command._condition._expression, '1')
+        self.assertEqual(len(command._cases), 1)
+        self.assertTrue(isinstance(command._cases["1"], CommandSequence))
+        self.assertEqual(len(command._cases["1"]._commands), 1)
+
+        env = {'values': {'a': 2}, 'local_vars': set()}
+
+
+        program = {
+            "process": [
+                {"!": "switch", "condition": "{b}", 
+                 "cases": [
+                    {"value": "1", "then": [{"!": "set", "name": "a", "value": "1 + 1"}]},
+                    {"value": "2", "then": [{"!": "set", "name": "a", "value": "1 - 1"}]},
+                 ],
+                },
+                {"!": "return", "value": "{a}"},
+            ]
+        }

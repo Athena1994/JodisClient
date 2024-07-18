@@ -5,8 +5,8 @@ import unittest
 import pandas as pd
 from pandas import DataFrame, Series
 
-from core.data.data_provider import DataProvider
-from core.simulation.trading_simulation import TradingSimulation
+from core.data.asset_provider import AssetProvider
+from core.simulation.sample_provider import SampleProvider
 
 
 class TestTradingSimulation(unittest.TestCase):
@@ -29,28 +29,28 @@ class TestTradingSimulation(unittest.TestCase):
             }
         }
 
-        data_provider = DataProvider(df, ['up', 'down'], 'zscore', 5)
-        sim = TradingSimulation(data_provider, conf)
+        data_provider = AssetProvider(df, ['up', 'down'], 'zscore', 5)
+        sim = SampleProvider(data_provider, conf)
 
         try:
-            sim.get_next_state()
+            sim.get_next_sample()
             self.fail("Should have raised an exception")
         except Exception:
             pass
 
         sim.start_session('tr')
         for i in range(6*6):
-            state = sim.get_next_state()
+            state = sim.get_next_sample()
             self.assertIsNotNone(state)
 
-        self.assertIsNone(sim.get_next_state())
+        self.assertIsNone(sim.get_next_sample())
         sim.start_session('tr')
         for i in range(6*6):
-            state = sim.get_next_state()
+            state = sim.get_next_sample()
             self.assertIsNotNone(state)
 
         sim.start_session('tr')
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
         self.assertIsNone(sim.sell(state.context))
@@ -65,18 +65,18 @@ class TestTradingSimulation(unittest.TestCase):
         
         self.assertEqual(sim.sell(Series({'close': 90})), 900)
         
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.simulation['money'], 1000)        
         self.assertEqual(state.simulation['asset'], 0)
 
         sim.buy(state.context)
         for i in range(4):
-            state = sim.get_next_state()
+            state = sim.get_next_sample()
             self.assertEqual(state.simulation['money'], 0)
             self.assertNotEqual(state.simulation['asset'], 0)
             self.assertEqual(state.episode, 0)
 
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.episode, 1)
         self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
@@ -84,25 +84,25 @@ class TestTradingSimulation(unittest.TestCase):
 
             
         sim.start_session('val')
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.episode, 0)
         self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
         self.assertEqual(sim.buy(Series({'close': 100})), 10)
 
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.episode, 0)
         self.assertEqual(state.simulation['money'], 0)
         self.assertEqual(state.simulation['asset'], 10)
         self.assertEqual(sim.sell(Series({'close': 90})), 900)
         
         for i in range(4):
-            state = sim.get_next_state()
+            state = sim.get_next_sample()
             self.assertEqual(state.episode, 0)
             self.assertEqual(state.simulation['money'], 900)
             self.assertEqual(state.simulation['asset'], 0)
 
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.episode, 1)
         self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
@@ -110,25 +110,25 @@ class TestTradingSimulation(unittest.TestCase):
 
 
         sim.start_session('test')
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.episode, 0)
         self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
         self.assertEqual(sim.buy(Series({'close': 100})), 10)
 
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.episode, 0)
         self.assertEqual(state.simulation['money'], 0)
         self.assertEqual(state.simulation['asset'], 10)
         self.assertEqual(sim.sell(Series({'close': 90})), 900)
         
         for i in range(4):
-            state = sim.get_next_state()
+            state = sim.get_next_sample()
             self.assertEqual(state.episode, 0)
             self.assertEqual(state.simulation['money'], 900)
             self.assertEqual(state.simulation['asset'], 0)
 
-        state = sim.get_next_state()
+        state = sim.get_next_sample()
         self.assertEqual(state.episode, 1)
         self.assertEqual(state.simulation['money'], 900)
         self.assertEqual(state.simulation['asset'], 0)

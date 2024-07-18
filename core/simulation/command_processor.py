@@ -122,7 +122,7 @@ class CommandFactory:
     @staticmethod
     def create_command(desc: dict) -> Command:
         if "!" not in desc:
-            raise ValueError("Command type not found")
+            raise ValueError(f"Command type not found! ('!' key missing; {desc})")
         
         if desc['!'] == "store":
             return StoreCommand.from_config(desc)
@@ -205,7 +205,7 @@ class StoreCommand(Command):
         if "name" not in config:
             raise ValueError("Variable name not found")
         if "value" not in config:
-            config["value"] = True
+            config["value"] = "True"
         return StoreCommand(config["name"], config["value"])
     
 
@@ -286,7 +286,8 @@ class SwitchCommand(Command):
                 raise ValueError("Value not found")
             if "then" not in case:
                 raise ValueError("Then not found")
-            self._cases[case["value"]] = CommandSequence.from_list(case["then"])
+            self._cases[case["value"]] \
+                = CommandSequence.from_list(case["then"])
             
     def execute(self, env: dict):
         value = self._condition.evaluate(env['values'])

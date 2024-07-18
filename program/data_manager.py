@@ -1,14 +1,12 @@
-
-
 from dataclasses import dataclass
 from typing import List, Tuple
 import pandas as pd
-from core.data.data_provider import ChunkType, DataProvider
+from core.data.data_provider import ChunkType
 from core.data.loader.ohcl_loader import OHCLLoader
 from core.data.loader.sql_loader import SQLOHCLLoader
 from core.data.technical_indicators.collection import IndicatorCollection
-from core.data.technical_indicators.indicators import Indicator, IndicatorDescription
 from core.data.utils import apply_indicator, assign_chunk_ids, split_time_chunks, training_split
+from program.asset_provider import AssetProvider
 
 @dataclass
 class Asset:
@@ -171,11 +169,11 @@ class DataManager:
             self._cache_asset(asset)
 
 
-    def get_provider(self, agent_cfg: dict) -> DataProvider:
+    def get_provider(self, agent_cfg: dict) -> AssetProvider:
         if len(self._assets) != 1:
             raise ValueError('Only single asset training is supported!')
         asset = Asset.from_config(agent_cfg['data'][0]['asset'])
-        return DataProvider(self._assets[asset],
+        return AssetProvider(self._assets[asset],
                             get_required_cols(agent_cfg)[0][1],
                             'zscore')
         

@@ -4,12 +4,13 @@ import sys
 
 import torch
 
-from core.data.data_provider import DataProvider
+from core.data.data_provider import AssetProvider
 from core.data.technical_indicators.collection import IndicatorCollection
 from core.nn.dynamic_nn import DynamicNN
 from core.qlearning.q_arbiter import DQNWrapper, DeepQFunction, QSigArbiter
 from core.qlearning.replay_buffer import ReplayBuffer
 from core.qlearning.trainer import DQNTrainer
+from core.simulation.sample_provider import State
 from program.data_manager import Asset, DataManager
 
 def _load_file(path: str):
@@ -24,7 +25,7 @@ class Simulation:
     def __init__(self) -> None:
         pass
 
-def training_step(data_provider: DataProvider, trainer: DQNTrainer, config: dict)\
+def training_step(data_provider: AssetProvider, trainer: DQNTrainer, config: dict)\
     -> float:
     total_error = 0
     total_samples = 0
@@ -39,14 +40,14 @@ def training_step(data_provider: DataProvider, trainer: DQNTrainer, config: dict
 
     return total_error / total_samples
 
-def validation_step(data_provider: DataProvider, 
+def validation_step(data_provider: AssetProvider, 
                     agent: QSigArbiter, 
                     config: dict,
                     use_test_data: bool):
     pass
 
 def train(agent: QSigArbiter,
-          data_provider: DataProvider, 
+          data_provider: AssetProvider, 
           trainer: DQNTrainer, 
           cfg: dict):
 
@@ -99,8 +100,15 @@ def main():
     training_config = _load_file(args.training_config)
 
     dm = DataManager(data_config, False)
+
+    def converter(state: State) -> dict:
+        return {
+            'time_series': state.sample,
+            'context': torch.Tensor()
+        }
+
     data_provider = dm.get_provider(agent_config)
-    dqn = DynamicNN(agent_config)
+    dqn = DQNWrapper(DynamicNN(agent_config), )
     agent = QSigArbiter(DeepQFunction(dqn), 
                         sig=training_config['exploration']['sigma'])
     trainer = _instantiate_trainer(training_config, dqn)

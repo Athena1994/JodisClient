@@ -3,6 +3,7 @@ from typing import Callable, Tuple
 
 import numpy as np
 from torch import Tensor
+
 import torch.nn as nn
 
 
@@ -51,10 +52,17 @@ class DeepQFunction(QFunction):
         return np.array(result)
 
 
-class QSigArbiter:
+class Arbiter:
+    @abstractmethod
+    def decide(self, state: object, explore: bool) -> np.array:
+        pass
+
+class QSigArbiter(Arbiter):
     def __init__(self, q_fct: QFunction, sig: float = 0.05):
+        super().__init__()
         self._q_fct = q_fct
         self._sig = sig
+
 
     def decide(self, state: object, explore: bool) -> np.array:
         q_values = self._q_fct.get_q_values(state)

@@ -9,7 +9,7 @@ from core.data.asset_provider import AssetProvider
 from core.simulation.sample_provider import SampleProvider
 
 
-class TestTradingSimulation(unittest.TestCase):
+class TestExperienceProvider(unittest.TestCase):
 
     def test_init(self):
         

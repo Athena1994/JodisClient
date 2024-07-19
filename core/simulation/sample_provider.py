@@ -15,11 +15,12 @@ class SampleProvider:
 
     def __init__(self, data_providers: Dict[str, DataProvider]) -> None:
 
-        self._chunk_provider_dict = {}
-        self._cont_providers = {}
+        if data_providers is None or len(data_providers) == 0:
+            raise ValueError("Data providers must be provided.")
+
         self._peek_key = None
 
-        self._chunk_provider_dict = {
+        self._chunk_providers = {
             key: provider for key, provider in data_providers.items()
             if isinstance(provider, ChunkProvider)
         }
@@ -28,10 +29,13 @@ class SampleProvider:
             if isinstance(provider, ContinuousProvider)
         }
 
+        if len(self._chunk_providers) == 0:
+            raise ValueError("At least one chunk provider must be provided.")
+
         # assert data providers are compatible
         signature = None
-        for key, provider in self._cont_providers.values():
-            sig = provider.get_chunk_signature()
+        for key in self._chunk_providers:
+            sig = self._chunk_providers[key].get_chunk_signature()
             if signature is None:
                 signature = sig
                 self._peek_key = key
@@ -40,7 +44,7 @@ class SampleProvider:
                                  "signatures.")
 
         self._episode_iterators = None  # iterates data chunks
-        self._sample_iterators = None  # iterates samples within a chunk
+        self._sample_reader = None  # iterates samples within a chunk
 
     def reset(self, type: ChunkType) -> None:
         """
@@ -54,27 +58,16 @@ class SampleProvider:
 
         """
         self._episode_iterators = {
-            key: self._data_provider[key].get_iterator(type)
-            for key in self._data_providers.keys()
+            key: self._chunk_providers[key].get_iterator(type)
+            for key in self._chunk_providers
         }
+
+        self._cont_providers = {
+            key: self._cont_providers[key].get_iterator(type)
+            for key in self._cont_providers
+        }
+
         self._next_episode()
-
-    def _next_episode(self) -> bool:
-        """
-        Move to the next episode.
-
-        Returns:
-            bool: True if there is a next episode, False otherwise.
-
-        """
-        self._sample_iterators = {
-            key: next(self._episode_iterators[key], None)
-            for key in self._episode_iterators.keys()
-        }
-        if self._sample_iterators[self._peek_key] is None:
-            self._sample_iterators = None
-            return False
-        return True
 
     def get_next_samples(self) -> Dict[str, Sample]:
         """
@@ -87,18 +80,18 @@ class SampleProvider:
             RuntimeError: If there is no active session.
 
         """
-        if self._sample_iterators is None:
+        if self._sample_reader is None:
             raise RuntimeError("No active session.")
         try:
             return {
-                key: next(self._sample_iterators[key])
-                for key in self._sample_iterators.keys()
+                key: next(self._sample_reader[key])
+                for key in self._sample_reader.keys()
             } | {key: next(self._cont_providers[key])
                  for key in self._cont_providers.keys()}
         except StopIteration:
             if not self._next_episode():
                 raise StopIteration("No more episodes.")
-            return self.get_next_sample()
+            return self.get_next_samples()
 
     def update_values(self, samples: Dict[str, Sample]):
         """
@@ -111,8 +104,11 @@ class SampleProvider:
             None
 
         """
+        if self._sample_reader is None:
+            raise RuntimeError("No active session.")
+
         updated_values = {
-            self._cont_providers[k].update_sample(samples[k])
+            k: self._cont_providers[k].update_sample(samples[k])
             for k in self._cont_providers.keys()
         }
         samples.update(updated_values)
@@ -125,4 +121,24 @@ class SampleProvider:
             bool: True if the current episode is complete, False otherwise.
 
         """
-        return self._sample_iterators[self._peek_key].is_exausted()
+        if self._sample_reader is None:
+            raise RuntimeError("No active session.")
+
+        return self._sample_reader[self._peek_key].is_exhausted()
+
+    def _next_episode(self) -> bool:
+        """
+        Move to the next episode.
+
+        Returns:
+            bool: True if there is a next episode, False otherwise.
+
+        """
+        self._sample_reader = {
+            key: next(self._episode_iterators[key], None)
+            for key in self._episode_iterators.keys()
+        }
+        if self._sample_reader[self._peek_key] is None:
+            self._sample_reader = None
+            return False
+        return True

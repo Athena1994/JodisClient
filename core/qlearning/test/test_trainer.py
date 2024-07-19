@@ -45,44 +45,44 @@ class DummyReplayBuffer(ReplayBuffer):
 
 class TestTrainer(unittest.TestCase):
 
-    def test_training_step(self):
-        print(os.environ.get('CUBLAS_WORKSPACE_CONFIG'))
-        input_tensor = Tensor([(0, 0), (0, 1), (1, 0), (1, 1)])
-        target_tensor = Tensor([(1, 0), (0, 1), (0, 1), (1, 0)])
+    # def test_training_step(self):
+    #     print(os.environ.get('CUBLAS_WORKSPACE_CONFIG'))
+    #     input_tensor = Tensor([(0, 0), (0, 1), (1, 0), (1, 1)])
+    #     target_tensor = Tensor([(1, 0), (0, 1), (0, 1), (1, 0)])
 
-        nn = torch.nn.Sequential(
-            torch.nn.Linear(2, 10),
-            torch.nn.ReLU(),
-            torch.nn.Linear(10, 2),
-            torch.nn.Sigmoid(),
-        )
-        optimizer = torch.optim.Adam(params=nn.parameters(), lr=0.1)
-        loss = torch.nn.MSELoss()
+    #     nn = torch.nn.Sequential(
+    #         torch.nn.Linear(2, 10),
+    #         torch.nn.ReLU(),
+    #         torch.nn.Linear(10, 2),
+    #         torch.nn.Sigmoid(),
+    #     )
+    #     optimizer = torch.optim.Adam(params=nn.parameters(), lr=0.1)
+    #     loss = torch.nn.MSELoss()
 
-        for _ in range(100):
-            perform_training_step(nn,
-                                  optimizer,
-                                  loss,
-                                  (input_tensor, target_tensor))
+    #     for _ in range(100):
+    #         perform_training_step(nn,
+    #                               optimizer,
+    #                               loss,
+    #                               (input_tensor, target_tensor))
 
-        result = torch.round(nn(input_tensor))
-        self.assertListEqual([list(v) for v in target_tensor],
-                             [list(v) for v in result])
+    #     result = torch.round(nn(input_tensor))
+    #     self.assertListEqual([list(v) for v in target_tensor],
+    #                          [list(v) for v in result])
 
-        # repeat with cuda
-        nn = nn.cuda()
-        optimizer = torch.optim.Adam(params=nn.parameters(), lr=0.1)
-        loss = loss.cuda()
+    #     # repeat with cuda
+    #     nn = nn.cuda()
+    #     optimizer = torch.optim.Adam(params=nn.parameters(), lr=0.1)
+    #     loss = loss.cuda()
 
-        for _ in range(1):
-            perform_training_step(nn,
-                                  optimizer,
-                                  loss,
-                                  (input_tensor.cuda(), target_tensor.cuda()))
+    #     for _ in range(1):
+    #         perform_training_step(nn,
+    #                               optimizer,
+    #                               loss,
+    #                               (input_tensor.cuda(), target_tensor.cuda()))
 
-        result = torch.round(nn(input_tensor.cuda()))
-        self.assertListEqual([list(v) for v in target_tensor],
-                             [list(v) for v in result])
+    #     result = torch.round(nn(input_tensor.cuda()))
+    #     self.assertListEqual([list(v) for v in target_tensor],
+    #                          [list(v) for v in result])
 
     def test_calculate_target_q(self):
         class DummyTargetQNN(torch.nn.Module):

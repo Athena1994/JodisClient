@@ -23,7 +23,7 @@ class DummyContProvider(ContinuousProvider):
                 self.next_sample = self.next_sample[0]
         else:
             ns = self.next_sample
-        return ns
+        return Sample(ns.tensor, ns.context.copy())
 
     def get_iterator(self, chunk_type: ChunkType) -> Self:
         self.last_iter_type = chunk_type
@@ -51,7 +51,7 @@ class DummyChunkReader(ChunkReader):
                 self.parent.next_sample = self.parent.next_sample[0]
         else:
             ns = self.parent.next_sample
-        return ns
+        return Sample(ns.tensor, ns.context.copy())
 
     def __next__(self) -> Sample:
         if self.is_exhausted():

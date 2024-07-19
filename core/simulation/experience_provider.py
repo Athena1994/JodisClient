@@ -25,25 +25,6 @@ class ExperienceProvider:
 
         self._mode = None
 
-    def _update_state(self, context: dict):
-        self._state_manager.update_context(context)
-        samples = self._state_manager.get_samples()
-        self._sample_provider.update_values(samples)
-        self._state_manager.update_samples(samples)
-
-    def _advance_state(self, context: dict) -> State:
-        self._state_manager.reset_state(context)
-        self._state_manager.update_samples(
-            self._sample_provider.get_next_samples()
-        )
-        return self._state_manager.get_state()
-
-    def _start_next_episode(self):
-        self._advance_state(
-            self._simulation.on_episode_start(
-                self._state_manager.get_context())
-        )
-
     def start(self, type: ChunkType):
         if self._running:
             raise Exception("Experience provider already running")
@@ -72,7 +53,7 @@ class ExperienceProvider:
         current_state = self._state_manager.get_state()
 
         action = self._agent.decide(current_state,
-                                    self._mode == ChunkType.TRAIN)
+                                    self._mode == ChunkType.TRAINING)
         next_state = self._advance_state(
             self._simulation.perform_transition(
                 self._state_manager.get_samples(),
@@ -98,3 +79,22 @@ class ExperienceProvider:
             new_state=next_state)
 
         return exp, 1
+
+    def _update_state(self, context: dict):
+        self._state_manager.update_context(context)
+        samples = self._state_manager.get_samples()
+        self._sample_provider.update_values(samples)
+        self._state_manager.update_samples(samples)
+
+    def _advance_state(self, context: dict) -> State:
+        self._state_manager.reset_state(context)
+        self._state_manager.update_samples(
+            self._sample_provider.get_next_samples()
+        )
+        return self._state_manager.get_state()
+
+    def _start_next_episode(self):
+        self._advance_state(
+            self._simulation.on_episode_start(
+                self._state_manager.get_context())
+        )

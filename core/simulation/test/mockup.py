@@ -14,16 +14,27 @@ class DummyContProvider(ContinuousProvider):
 
         self.next_sample = None
 
+    def _pop(self):
+        if isinstance(self.next_sample, list):
+            ns = self.next_sample[0]
+            if len(self.next_sample) > 1:
+                self.next_sample = self.next_sample[1:]
+            else:
+                self.next_sample = self.next_sample[0]
+        else:
+            ns = self.next_sample
+        return ns
+
     def get_iterator(self, chunk_type: ChunkType) -> Self:
         self.last_iter_type = chunk_type
         return self
 
     def __next__(self) -> Sample:
-        return Sample(None, self.next_sample.context.copy())
+        return self._pop()
 
-    def update_sample(self, sample: Sample) -> Sample:
+    def update_sample(self, sample: Sample) -> None:
         self.test.assertEqual(self.expected_update_sample, sample)
-        return self.next_sample
+        return self._pop()
 
 
 class DummyChunkReader(ChunkReader):
@@ -31,10 +42,21 @@ class DummyChunkReader(ChunkReader):
         self.test = ut
         self.parent = parent
 
+    def _pop(self):
+        if isinstance(self.parent.next_sample, list):
+            ns = self.parent.next_sample[0]
+            if len(self.parent.next_sample) > 1:
+                self.parent.next_sample = self.parent.next_sample[1:]
+            else:
+                self.parent.next_sample = self.parent.next_sample[0]
+        else:
+            ns = self.parent.next_sample
+        return ns
+
     def __next__(self) -> Sample:
         if self.is_exhausted():
             raise StopIteration()
-        return Sample(None, self.parent.next_sample.context.copy())
+        return self._pop()
 
     def __len__(self) -> int:
         return 0

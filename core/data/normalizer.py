@@ -11,23 +11,23 @@ class Normalizer:
     Normalizer class for data normalization.
 
     Configuration:
-    - df_key (mandatory for calling prepare): 
-        Frame key under which to store statistics calculated during 
+    - df_key (mandatory for calling prepare):
+        Frame key under which to store statistics calculated during
         prepare.
-    
-    - groups (optional): 
+
+    - groups (optional):
         List of groups of columns. Statistics will be calculated accross
         entire group.
 
-    - default_strategy (optional, takes value 'none' if omitted): 
-        The default normalization strategy to be applied if not 
+    - default_strategy (optional, takes value 'none' if omitted):
+        The default normalization strategy to be applied if not
         specified for a specific column.
 
-    - params (optional): 
+    - params (optional):
         Additional parameters for normalization strategy.
-    
-    - extra (optional): 
-        Additional configuration for specific columns. Can override 
+
+    - extra (optional):
+        Additional configuration for specific columns. Can override
         the default strategy, parameters and stats source.
 
     example config:
@@ -43,7 +43,7 @@ class Normalizer:
             }
         }
     }
-                
+
     Supported normalization strategies:
     - 'none': No normalization is applied.
     - 'minmax': Min-max normalization.
@@ -94,21 +94,24 @@ class Normalizer:
 
     def prepare(self, df: pd.DataFrame, conf: dict) -> None:
         """
-        Prepare the normalizer by calculating statistics for the specified DataFrame.
+        Prepare the normalizer by calculating statistics for the specified
+        DataFrame.
 
         Args:
-            df (pd.DataFrame): The DataFrame for which statistics are calculated.
+            df (pd.DataFrame): The DataFrame for which statistics are
+                               calculated.
             conf (dict): The configuration dictionary.
 
         Raises:
             ValueError: If 'df_key' is not found in the configuration.
-            ValueError: If columns specified in 'groups' are not found in the DataFrame.
+            ValueError: If columns specified in 'groups' are not found in the
+                        DataFrame.
             ValueError: If statistics for a column already exist.
         """
         def get_group_stats(df: pd.DataFrame, cols: list[str]):
             missing_cols = [col for col in cols if col not in df.columns]
             if len(missing_cols) > 0:
-                raise ValueError(f"Columns {missing_cols} not found in dataframe")
+                raise ValueError(f"Columns {missing_cols} not found in df")
 
             return Normalizer.Stats.from_array(
                 np.concatenate(df[cols].values))
@@ -134,7 +137,8 @@ class Normalizer:
 
     def normalize_df(self, df: pd.DataFrame, conf: dict) -> pd.DataFrame:
         """
-        Normalize the specified DataFrame using the configured normalization strategies.
+        Normalize the specified DataFrame using the configured normalization
+        strategies.
 
         Args:
             df (pd.DataFrame): The DataFrame to be normalized.
@@ -146,8 +150,10 @@ class Normalizer:
         Raises:
             ValueError: If 'df_key' is not found in the configuration.
             ValueError: If statistics for the specified key are not found.
-            ValueError: If a strategy other than 'none' is specified without providing 'df_key'.
-            ValueError: If a strategy requires a stats key but it is not provided.
+            ValueError: If a strategy other than 'none' is specified without
+                        providing 'df_key'.
+            ValueError: If a strategy requires a stats key but it is not
+                        provided.
             ValueError: If the normalization strategy is not supported.
         """
         default_strategy = Normalizer.Strategy.from_str(
@@ -166,7 +172,8 @@ class Normalizer:
 
         if default_strategy != Normalizer.Strategy.NONE \
                 and default_df_key is None:
-            raise ValueError("If a default strategy other than 'none' is specified, 'df_key' must be provided")
+            raise ValueError("If a default strategy other than 'none' is "
+                             "specified, 'df_key' must be provided")
 
         extra = conf.get('extra', {})
         for col in df.columns:
@@ -219,22 +226,27 @@ class Normalizer:
             np.ndarray: The normalized data.
 
         Raises:
-            ValueError: If the strategy is 'none', 'formula', or 'minmax' and the statistics are not found.
+            ValueError: If the strategy is 'none', 'formula', or 'minmax' and
+                        the statistics are not found.
             ValueError: If the strategy is not supported.
-            ValueError: If the expression is not found in the formula parameters.
+            ValueError: If the expression is not found in the formula
+                        parameters.
         """
         if strategy == Normalizer.Strategy.NONE:
             return data.copy()
 
         if strategy == Normalizer.Strategy.FORMULA:
             if 'expression' not in params:
-                raise ValueError("Expression not found in formula params ({params})")
-            x = data
+                raise ValueError("Expression not found in formula params "
+                                 f"({params})")
+
+            x = data  # noqa (x is used in the eval)
             return eval(params['expression'])
 
         if key not in self._stats:
             if col not in self._stats[key]:
-                raise ValueError(f"Stats for key {key} and column {col} not found")
+                raise ValueError(f"Stats for key {key} and column {col} not "
+                                 "found")
         stats = self._stats[key][col]
 
         if strategy == Normalizer.Strategy.MINMAX:

@@ -1,8 +1,8 @@
 import unittest
 from pandas import DataFrame
 from core.data.technical_indicators.collection import IndicatorCollection
-from core.data.technical_indicators.indicators import IndicatorParameterDescription, IndicatorPrototype
-from core.data.technical_indicators.momentum import AwesomeOscillatorIndicator
+from core.data.technical_indicators.indicators \
+      import IndicatorParameterDescription, IndicatorPrototype
 
 
 class DummyIndicator(IndicatorPrototype):
@@ -18,27 +18,29 @@ class DummyIndicator(IndicatorPrototype):
         return params['b'] + df['w'].rolling(window=params['a']).sum()
 
 
-
 class TestIndicators(unittest.TestCase):
     def test_hash(self):
-        ind0 = DummyIndicator(None).get_descriptor().create_indicator({'a': 5, 'b': 0})
-        ind1 = DummyIndicator(None).get_descriptor().create_indicator({'a': 5, 'b': 1})
-        ind2 = DummyIndicator(None).get_descriptor().create_indicator({'a': 5, 'b': 0})
-        
+        conf = {'a': 5, 'b': 0}
+        ind0 = DummyIndicator(None).get_descriptor().create_indicator(conf)
+        ind2 = DummyIndicator(None).get_descriptor().create_indicator(conf)
+
+        conf['b'] = 1
+        ind1 = DummyIndicator(None).get_descriptor().create_indicator(conf)
+
         self.assertNotEqual(hash(ind0), hash(ind1))
         self.assertEqual(hash(ind0), hash(ind2))
 
         self.assertNotEqual(ind0.get_unique_id(), ind1.get_unique_id())
         self.assertEqual(ind0.get_unique_id(), ind2.get_unique_id())
 
-        inda1 = IndicatorCollection.get_from_cfg({'name': 'AwesomeOscillator', 
-                                                 'params': {'long_period': 5, 
+        inda1 = IndicatorCollection.get_from_cfg({'name': 'AwesomeOscillator',
+                                                 'params': {'long_period': 5,
                                                             'short_period': 2}})
-        indb = IndicatorCollection.get_from_cfg({'name': 'AwesomeOscillator', 
-                                                 'params': {'long_period': 60, 
-                                                            'short_period': 30}})
-        inda2 = IndicatorCollection.get_from_cfg({'name': 'AwesomeOscillator', 
-                                                 'params': {'long_period': 5, 
+        indb = IndicatorCollection.get_from_cfg({'name': 'AwesomeOscillator',
+                                                 'params': {'long_period': 60,
+                                                            'short_period': 9}})
+        inda2 = IndicatorCollection.get_from_cfg({'name': 'AwesomeOscillator',
+                                                 'params': {'long_period': 5,
                                                             'short_period': 2}})
 
         self.assertNotEqual(hash(inda1), hash(indb))
@@ -46,8 +48,6 @@ class TestIndicators(unittest.TestCase):
 
         self.assertNotEqual(inda1.get_unique_id(), indb.get_unique_id())
         self.assertEqual(inda1.get_unique_id(), inda2.get_unique_id())
-                
-
 
     def test(self):
         indicator_prototype = DummyIndicator(skip_f=None)

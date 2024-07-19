@@ -2,11 +2,11 @@
 
 from dataclasses import dataclass
 import json
-from typing import Dict, Tuple
 import pandas as pd
 import torch
 from program.asset_source import AssetSource
-from core.data.data_provider import ChunkIterator, ChunkProvider, ChunkReader, ChunkType, Sample
+from core.data.data_provider\
+      import ChunkIterator, ChunkProvider, ChunkReader, ChunkType, Sample
 
 
 class AssetProvider(ChunkProvider):
@@ -16,7 +16,7 @@ class AssetProvider(ChunkProvider):
         start_ix: int
         length: int
 
-    def __init__(self, 
+    def __init__(self,
                  source: AssetSource,
                  context_columns: list[str],
                  tensor_columns: list[str],
@@ -26,19 +26,19 @@ class AssetProvider(ChunkProvider):
 
         data = source.get_data([
             AssetSource.DataFrameRequirement(
-                key = 'chunks', 
-                columns = ['chunk', 'chunk_type'], 
-                normalize = False),
+                key='chunks',
+                columns=['chunk', 'chunk_type'],
+                normalize=False),
             AssetSource.DataFrameRequirement(
-                key = 'context', 
-                columns = context_columns, 
-                normalize = False),
+                key='context',
+                columns=context_columns,
+                normalize=False),
             AssetSource.DataFrameRequirement(
-                key = 'tensor', 
-                columns = tensor_columns,
-                normalize = True)
+                key='tensor',
+                columns=tensor_columns,
+                normalize=True)
         ])
-        
+
         chunk_id_col = data['chunks']['chunk']
         chunk_type_col = data['chunks']['chunk_type']
 
@@ -50,24 +50,23 @@ class AssetProvider(ChunkProvider):
         chunk_ids = chunk_id_col[chunk_id_col != -1].unique()
         self._chunk_ranges = []
         for id in chunk_ids:
-            sub_frame = self._context[chunk_id_col == id]            
+            sub_frame = self._context[chunk_id_col == id]
             self._chunk_ranges.append(
                 AssetProvider.ChunkRange(
-                    start_ix = sub_frame.index[0], 
-                    length = len(sub_frame)))
-        
+                    start_ix=sub_frame.index[0],
+                    length=len(sub_frame)))
 
         # collect ids according to chunktype
         self._chunk_ids = {
-            ChunkType.TRAINING: [], 
-            ChunkType.VALIDATION: [], 
+            ChunkType.TRAINING: [],
+            ChunkType.VALIDATION: [],
             ChunkType.TEST: []
         }
         for r in self._chunk_ranges:
             type = ChunkType.from_int(chunk_type_col[r.start_ix])
             self._chunk_ids[type].append(chunk_id_col[r.start_ix])
 
-    # returns an iterator over the data chunks of the specified type 
+    # returns an iterator over the data chunks of the specified type
     def get_iterator(self, chunk_type: ChunkType) -> ChunkIterator:
         return AssetChunkIterator(self, chunk_type)
 
@@ -82,8 +81,9 @@ class AssetProvider(ChunkProvider):
                 res[type].append(self._chunk_ranges[id].length)
         return json.dumps(res)
 
+
 class AssetChunkIterator(ChunkIterator):
-    def __init__(self, 
+    def __init__(self,
                  provider: AssetProvider,
                  chunk_type: ChunkType) -> None:
         super().__init__()
@@ -112,15 +112,16 @@ class AssetChunkIterator(ChunkIterator):
         tensor = self._provider._tensor[ix_start:ix_end]
         context = self._provider._context.iloc[ix_start:ix_end]
 
-        return AssetChunkReader(tensor, 
-                                context, 
+        return AssetChunkReader(tensor,
+                                context,
                                 self._provider._window_size)
 
+
 class AssetChunkReader(ChunkReader):
-    def __init__(self, 
-                tensor: torch.Tensor, 
-                context: pd.DataFrame,
-                window_size: int) -> None:
+    def __init__(self,
+                 tensor: torch.Tensor,
+                 context: pd.DataFrame,
+                 window_size: int) -> None:
         super().__init__()
         self._tensor = tensor
         self._context = context
@@ -130,17 +131,17 @@ class AssetChunkReader(ChunkReader):
 
     def __len__(self) -> int:
         return len(self._tensor) - self._window_size + 1
-    
+
     def __next__(self) -> Sample:
         if self.is_exausted():
             raise StopIteration()
-        
+
         ix_start = self._ix
         ix_end = self._ix + self._window_size
 
         self._ix += 1
 
-        return Sample(self._tensor[ix_start:ix_end], 
+        return Sample(self._tensor[ix_start:ix_end],
                       self._context.iloc[ix_end-1])
 
     def is_exausted(self) -> bool:

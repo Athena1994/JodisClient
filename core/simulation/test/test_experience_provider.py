@@ -5,14 +5,14 @@ import unittest
 import pandas as pd
 from pandas import DataFrame, Series
 
-from core.data.asset_provider import AssetProvider
 from core.simulation.sample_provider import SampleProvider
+from program.asset_provider import AssetProvider
 
 
 class TestExperienceProvider(unittest.TestCase):
 
     def test_init(self):
-        
+
         df = DataFrame(
             {
                 "date": pd.date_range(start='1/1/2021', periods=100),
@@ -20,7 +20,7 @@ class TestExperienceProvider(unittest.TestCase):
                 "down": range(100, 0, -1),
                 "close": range(100, 0, -1),
                 "chunk": [i // 10 for i in range(100)],
-                "chunk_type": [0]*60 + [1]*20 + [2]*20, 
+                "chunk_type": [0]*60 + [1]*20 + [2]*20,
             }
         )
         conf = {
@@ -56,17 +56,17 @@ class TestExperienceProvider(unittest.TestCase):
         self.assertIsNone(sim.sell(state.context))
         self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
-        
+
         self.assertEqual(sim.buy(Series({'close': 100})), 10)
         state = sim.get_current_state()
         self.assertEqual(state.simulation['money'], 0)
         self.assertEqual(state.simulation['asset'], 10)
         self.assertIsNone(sim.buy(state.context))
-        
+
         self.assertEqual(sim.sell(Series({'close': 90})), 900)
-        
+
         state = sim.get_next_sample()
-        self.assertEqual(state.simulation['money'], 1000)        
+        self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
 
         sim.buy(state.context)
@@ -80,9 +80,7 @@ class TestExperienceProvider(unittest.TestCase):
         self.assertEqual(state.episode, 1)
         self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
-            
 
-            
         sim.start_session('val')
         state = sim.get_next_sample()
         self.assertEqual(state.episode, 0)
@@ -95,7 +93,7 @@ class TestExperienceProvider(unittest.TestCase):
         self.assertEqual(state.simulation['money'], 0)
         self.assertEqual(state.simulation['asset'], 10)
         self.assertEqual(sim.sell(Series({'close': 90})), 900)
-        
+
         for i in range(4):
             state = sim.get_next_sample()
             self.assertEqual(state.episode, 0)
@@ -106,8 +104,6 @@ class TestExperienceProvider(unittest.TestCase):
         self.assertEqual(state.episode, 1)
         self.assertEqual(state.simulation['money'], 1000)
         self.assertEqual(state.simulation['asset'], 0)
-
-
 
         sim.start_session('test')
         state = sim.get_next_sample()
@@ -121,7 +117,7 @@ class TestExperienceProvider(unittest.TestCase):
         self.assertEqual(state.simulation['money'], 0)
         self.assertEqual(state.simulation['asset'], 10)
         self.assertEqual(sim.sell(Series({'close': 90})), 900)
-        
+
         for i in range(4):
             state = sim.get_next_sample()
             self.assertEqual(state.episode, 0)

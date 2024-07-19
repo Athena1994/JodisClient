@@ -14,39 +14,26 @@ class TestNormalizer(unittest.TestCase):
         stats = Normalizer.Stats.from_array(data)
         self.assertEqual(stats.mean, 3)
         d = np.array(data)
-        self.assertAlmostEqual(stats.std, 
+        self.assertAlmostEqual(stats.std,
                                np.sqrt(np.sum(np.square(d-d.mean()))/len(d)))
         self.assertEqual(stats.min, 1)
         self.assertEqual(stats.max, 5)
 
-        data = pd.DataFrame({'a':[1, 2, 3, 4, 5]})
+        data = pd.DataFrame({'a': [1, 2, 3, 4, 5]})
         stats = Normalizer.Stats.from_array(data['a'])
         self.assertEqual(stats.mean, 3)
         d = np.array(data['a'])
-        self.assertAlmostEqual(stats.std, 
+        self.assertAlmostEqual(stats.std,
                                np.sqrt(np.sum(np.square(d-d.mean()))/len(d)))
         self.assertEqual(stats.min, 1)
         self.assertEqual(stats.max, 5)
 
-        
-
     def test_normalizer_base(self):
-        df_a = pd.DataFrame({
-            'a': range(1, 6),
-            'b': range(6, 11),
-            'c': range(11, 16)
-        })
         df_b = pd.DataFrame({
             'c': range(1, 6),
             'd': range(6, 11)
         })
 
-
-        stats_a = {
-            'a': Normalizer.Stats.from_array(df_a['a']),
-            'b': Normalizer.Stats.from_array(df_a['b']),
-            'c': Normalizer.Stats.from_array(df_a['c'])
-        }
         stats_b = {
             'c': Normalizer.Stats.from_array(df_b['c']),
             'd': Normalizer.Stats.from_array(df_b['d'])
@@ -73,19 +60,18 @@ class TestNormalizer(unittest.TestCase):
         mock_conf = {'default_strategy': 'zscore',
                      'df_key': 'foo'}
         normalizer.prepare(df_b, mock_conf)
-        
+
         self.assertTrue('foo' in normalizer._stats)
         self.assertTrue('c' in normalizer._stats['foo'])
         self.assertTrue('d' in normalizer._stats['foo'])
-        self.assertEqual(normalizer._stats['foo']['c'].mean, 
+        self.assertEqual(normalizer._stats['foo']['c'].mean,
                          stats_b['c'].mean)
-        self.assertEqual(normalizer._stats['foo']['c'].std, 
+        self.assertEqual(normalizer._stats['foo']['c'].std,
                          stats_b['c'].std)
         self.assertEqual(normalizer._stats['foo']['d'].mean,
                          stats_b['d'].mean)
-        self.assertEqual(normalizer._stats['foo']['d'].std, 
+        self.assertEqual(normalizer._stats['foo']['d'].std,
                          stats_b['d'].std)
-
 
         df_norm = normalizer.normalize_df(df_b, mock_conf)
 
@@ -111,14 +97,10 @@ class TestNormalizer(unittest.TestCase):
             'b': range(6, 11),
             'c': range(11, 16)
         })
-        df_b = pd.DataFrame({
-            'c': range(1, 6),
-            'd': range(6, 11)
-        })
 
         normalizer = Normalizer()
         normalizer.prepare(df_a, {
-            'df_key': 'foo', 
+            'df_key': 'foo',
             'groups': [['a', 'b']]})
 
         ab = np.arange(1, 11)
@@ -127,7 +109,7 @@ class TestNormalizer(unittest.TestCase):
         self.assertTrue('a' in normalizer._stats['foo'])
         self.assertTrue('b' in normalizer._stats['foo'])
         self.assertTrue('c' in normalizer._stats['foo'])
-        self.assertEqual(normalizer._stats['foo']['a'].mean, 
+        self.assertEqual(normalizer._stats['foo']['a'].mean,
                          ab.mean())
         self.assertEqual(normalizer._stats['foo']['a'].std,
                          ab.std())
@@ -138,7 +120,7 @@ class TestNormalizer(unittest.TestCase):
                          df_a['c'].mean())
         self.assertEqual(normalizer._stats['foo']['c'].std,
                          df_a['c'].std(ddof=0))
-        
+
     def test_normalizer_extra(self):
 
         df_a = pd.DataFrame({
@@ -154,7 +136,7 @@ class TestNormalizer(unittest.TestCase):
         normalizer = Normalizer()
 
         normalizer.prepare(df_a, {
-            'df_key': 'foo', 
+            'df_key': 'foo',
             'groups': [['a', 'b']]
         })
 
@@ -186,7 +168,7 @@ class TestNormalizer(unittest.TestCase):
             mock_conf['df_key'] = 'bar'
             df_norm = normalizer.normalize_df(df_b, mock_conf)
             self.fail("Should have raised an exception")
-        except:
+        except Exception:
             pass
 
         mock_conf['df_key'] = 'foo'
@@ -206,7 +188,7 @@ class TestNormalizer(unittest.TestCase):
         for i in range(5):
             self.assertEqual(df_norm['c'][i], c_norm[i])
             self.assertEqual(df_norm['d'][i], df_b['d'][i])
-        
+
         mock_conf['extra']['c']['stats_col'] = 'a'
         df_norm = normalizer.normalize_df(df_b, mock_conf)
         c_norm = np.arange(1, 6)
@@ -234,14 +216,15 @@ class TestNormalizer(unittest.TestCase):
 
     def test_formula_strategy(self):
         df = pd.DataFrame({
-            'a': [1/4, 1/2, 2/3, 3/4, 9/10, 9.5/10, 9.9/10, 1.01, 1.05, 1.10, 1.15, 1.2, 1.35, 1.5, 1.75, 2],
+            'a': [1/4, 1/2, 2/3, 3/4, 9/10, 9.5/10, 9.9/10, 1.01, 1.05, 1.10,
+                  1.15, 1.2, 1.35, 1.5, 1.75, 2],
         })
 
         mock_config = {
             'extra': {
                 'a': {
                     'strategy': 'formula',
-                    'params':{
+                    'params': {
                         'expression': 'np.log(x)/np.log(1.10)',
                     }
                 }
@@ -249,9 +232,8 @@ class TestNormalizer(unittest.TestCase):
         }
 
         norm = Normalizer()
-        
+
         ndf = norm.normalize_df(df, mock_config)
 
         print(df)
         print(ndf)
-    

@@ -2,8 +2,9 @@
 
 import pandas as pd
 import torch
+from core.data.data_provider import ChunkType, Sample
 from core.data.normalizer import Normalizer
-from core.simulation.state_manager import *
+from core.simulation.state_manager import StateManager, StateProvider
 import unittest
 
 
@@ -15,7 +16,7 @@ class TestStateManager(unittest.TestCase):
         self.assertIsNone(sm.get_context())
         self.assertIsNone(sm.get_samples())
 
-        samples = {'a': Sample(None, {'c': 1}), 
+        samples = {'a': Sample(None, {'c': 1}),
                    'b': Sample(None, {'d': 2})}
         sm.update_samples(samples)
 
@@ -29,11 +30,9 @@ class TestStateManager(unittest.TestCase):
         s = sm.get_samples()
         self.assertEqual(s['a'].context['c'], 1)
 
-        s['a'] = Sample(None, {'c': 3})   
+        s['a'] = Sample(None, {'c': 3})
         s = sm.get_samples()
         self.assertEqual(s['a'].context['c'], 1)
-        
-
 
         context = {'a': 1, 'b': 2}
         sm.reset_state(context)
@@ -50,10 +49,9 @@ class TestStateManager(unittest.TestCase):
         c2 = sm.get_context()
         self.assertEqual(c2['a'], 1)
 
-        c2['a'] = 3      
+        c2['a'] = 3
         c2 = sm.get_context()
         self.assertEqual(c2['a'], 1)
-        
 
         sm.update_samples(samples)
         self.assertIsNotNone(sm.get_samples())
@@ -73,10 +71,9 @@ class TestStateManager(unittest.TestCase):
         c2 = sm.get_context()
         self.assertEqual(c2['a'], 4)
 
-        c2['a'] = 3      
+        c2['a'] = 3
         c2 = sm.get_context()
         self.assertEqual(c2['a'], 4)
-
 
     def test_state_provider(self):
         sm = StateManager()
@@ -107,7 +104,7 @@ class TestStateManager(unittest.TestCase):
             self.fail("Should have raised an exception")
         except ValueError:
             pass
-        
+
         try:
             sp = StateProvider(sm, normalizer, {"normalizer": {}})
             self.fail("Should have raised an exception")
@@ -119,7 +116,7 @@ class TestStateManager(unittest.TestCase):
             self.fail("Should have raised an exception")
         except ValueError:
             pass
-        
+
         sp = StateProvider(sm, normalizer, conf)
         self.assertEqual(sp.get_iterator(ChunkType.TRAINING), sp)
         self.assertEqual(sp.get_iterator(ChunkType.VALIDATION), sp)

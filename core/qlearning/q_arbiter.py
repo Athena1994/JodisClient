@@ -57,12 +57,12 @@ class Arbiter:
     def decide(self, state: object, explore: bool) -> np.array:
         pass
 
+
 class QSigArbiter(Arbiter):
     def __init__(self, q_fct: QFunction, sig: float = 0.05):
         super().__init__()
         self._q_fct = q_fct
         self._sig = sig
-
 
     def decide(self, state: object, explore: bool) -> np.array:
         q_values = self._q_fct.get_q_values(state)
@@ -76,4 +76,3 @@ class QSigArbiter(Arbiter):
                                                  np.sum(random))
 
         return action_ix
-

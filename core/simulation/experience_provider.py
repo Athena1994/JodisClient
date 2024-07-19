@@ -8,8 +8,9 @@ from core.simulation.sample_provider import SampleProvider
 from core.simulation.simulation_environment import SimulationEnvironment, State
 from core.simulation.state_manager import StateManager
 
+
 class ExperienceProvider:
-    def __init__(self, 
+    def __init__(self,
                  state_manager: StateManager,
                  sample_provider: SampleProvider,
                  agent: Arbiter,
@@ -42,12 +43,11 @@ class ExperienceProvider:
             self._simulation.on_episode_start(
                 self._state_manager.get_context())
         )
-        
 
     def start(self, type: ChunkType):
         if self._running:
             raise Exception("Experience provider already running")
-        
+
         self._mode = type
 
         self._state_manager.reset_state(
@@ -68,16 +68,16 @@ class ExperienceProvider:
             except StopIteration:
                 self._running = False
                 return None
-            
+
         current_state = self._state_manager.get_state()
 
-        action = self._agent.decide(current_state, 
+        action = self._agent.decide(current_state,
                                     self._mode == ChunkType.TRAIN)
         next_state = self._advance_state(
             self._simulation.perform_transition(
                 self._state_manager.get_samples(),
-                self._state_manager.get_context(), 
-                action, 
+                self._state_manager.get_context(),
+                action,
                 self._mode
             )
         )
@@ -86,15 +86,15 @@ class ExperienceProvider:
                                                    action)
 
         self._update_state(
-            self._simulation.on_action(self._state_manager.get_context(), 
-                                       action, 
+            self._simulation.on_action(self._state_manager.get_context(),
+                                       action,
                                        self._mode)
         )
 
         exp = Experience(
             old_state=current_state,
-            action=action, 
-            reward=reward, 
+            action=action,
+            reward=reward,
             new_state=next_state)
 
         return exp, 1

@@ -2,6 +2,7 @@
 from typing import List, NamedTuple, Tuple
 import numpy as np
 
+
 class Experience(NamedTuple):
     old_state: object
     action: int
@@ -83,4 +84,3 @@ class ReplayBuffer:
             'reward': self._reward_buffer[choices],
             'next_state': self._next_state_buffer[choices],
         }
-

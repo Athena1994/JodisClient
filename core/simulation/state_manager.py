@@ -13,14 +13,14 @@ class StateManager:
     def __init__(self) -> None:
         self._context = None
         self._samples = None
-        
+
     def reset_state(self, context: dict) -> None:
         self._context = context.copy()
         self._samples = None
 
-    def update_context(self, 
+    def update_context(self,
                        context: dict) -> None:
-                     
+
         self._context = context.copy()
 
     def update_samples(self,
@@ -30,18 +30,20 @@ class StateManager:
     def get_context(self) -> dict:
         if self._context is None:
             return None
-        return self._context.copy() 
+        return self._context.copy()
+
     def get_samples(self) -> Dict[str, Sample]:
         if self._samples is None:
             return None
         return self._samples.copy()
+
     def get_state(self) -> State:
         return State(self.get_samples(), self.get_context())
-        
-        
+
+
 class StateProvider(ContinuousProvider):
 
-    def __init__(self, 
+    def __init__(self,
                  state_manager: StateManager,
                  normalizer: Normalizer,
                  conf: dict) -> None:
@@ -57,10 +59,9 @@ class StateProvider(ContinuousProvider):
             raise ValueError("Include field not found in config.")
         self._fields = conf["include"]
 
-
     def get_iterator(self, chunk_type: ChunkType) -> "StateProvider":
         return self
-    
+
     def __next__(self) -> Sample:
         context = self._state_manager.get_context()
         if context is None:

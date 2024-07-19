@@ -1,13 +1,16 @@
 from typing import Dict
 
-from core.data.data_provider import ChunkProvider, ChunkType, ContinuousProvider, DataProvider, Sample
+from core.data.data_provider \
+    import ChunkProvider, ChunkType, ContinuousProvider, DataProvider, Sample
+
 
 class SampleProvider:
     """
     A class that provides samples for simulation.
 
     Args:
-        data_providers (Dict[str, DataProvider]): A dictionary of data providers.
+        data_providers (Dict[str, DataProvider]): A dictionary of data
+                                                  providers.
     """
 
     def __init__(self, data_providers: Dict[str, DataProvider]) -> None:
@@ -33,9 +36,10 @@ class SampleProvider:
                 signature = sig
                 self._peek_key = key
             elif signature != sig:
-                raise ValueError("Data providers have incompatible chunk signatures.")
+                raise ValueError("Data providers have incompatible chunk "
+                                 "signatures.")
 
-        self._episode_iterators = None  # iterates data chunks 
+        self._episode_iterators = None  # iterates data chunks
         self._sample_iterators = None  # iterates samples within a chunk
 
     def reset(self, type: ChunkType) -> None:
@@ -108,7 +112,7 @@ class SampleProvider:
 
         """
         updated_values = {
-            self._cont_providers[k].update_sample(samples[k]) 
+            self._cont_providers[k].update_sample(samples[k])
             for k in self._cont_providers.keys()
         }
         samples.update(updated_values)

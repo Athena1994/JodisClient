@@ -2,6 +2,7 @@ import unittest
 
 from core.qlearning.replay_buffer import Experience, ReplayBuffer
 
+
 class TestReplayBuffer(unittest.TestCase):
 
     def test_multidim_sample(self):
@@ -82,4 +83,3 @@ class TestReplayBuffer(unittest.TestCase):
             num_with_value = samples[samples == v['val']].shape[0]
             frequency = num_with_value / samples.shape[0]
             self.assertAlmostEqual(frequency, 1/len(vals), 1)
-

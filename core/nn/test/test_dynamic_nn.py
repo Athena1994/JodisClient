@@ -12,12 +12,12 @@ class TestDynamicNN(unittest.TestCase):
     def test_instantiation(self):
 
         dummy_conf = {
-            "general":{
+            "general": {
                 "name": "AgentAlpha",
                 "unnormalized_data": "zscore",
                 "input_window": 128
             },
-            
+
             "data": [
                 {
                     "asset": {
@@ -38,21 +38,21 @@ class TestDynamicNN(unittest.TestCase):
                     "ohcl": True
                 }
             ],
-            
+
             "architecture": {
                 "LSTM": {
                     "num_layers": 1,
                     "hidden_size": 256,
                 },
 
-                "classifier":[
-                    { "type": "ReLU"},
-                    { "type": "Dropout", "p": 0.5},
-                    { "type": "Linear", "size": 128},
-                    { "type": "ReLU"},
-                    { "type": "Dropout", "p": 0.6},
-                    { "type": "Linear", "size": 3}
-                ] 
+                "classifier": [
+                    {"type": "ReLU"},
+                    {"type": "Dropout", "p": 0.5},
+                    {"type": "Linear", "size": 128},
+                    {"type": "ReLU"},
+                    {"type": "Dropout", "p": 0.6},
+                    {"type": "Linear", "size": 3}
+                ]
             }
         }
 
@@ -63,10 +63,8 @@ class TestDynamicNN(unittest.TestCase):
         self.assertEqual(dnn.LSTM.hidden_size, 256)
         self.assertEqual(dnn.LSTM.num_layers, 1)
 
-#        classifier = list(modules())
         self.assertEqual(len(dnn.classifier), 6)
-        
-        #print(nn.classifier, nn.classifier.layers)
+
         self.assertTrue(isinstance(dnn.classifier[0], torch.nn.ReLU))
         self.assertTrue(isinstance(dnn.classifier[1], torch.nn.Dropout))
         self.assertEqual(dnn.classifier[1].p, 0.5)

@@ -7,10 +7,10 @@ import typing
 from pandas import DataFrame, Series
 
 """
-    Specific indicator logic and parameter descriptions are wrapped in 
-    `IndicatorPrototype` implementations. These provide a matching 
-    `IndicatorDesc` object, which in turn can be used to instantiate actual 
-    indicator objects.     
+    Specific indicator logic and parameter descriptions are wrapped in
+    `IndicatorPrototype` implementations. These provide a matching
+    `IndicatorDesc` object, which in turn can be used to instantiate actual
+    indicator objects.
 """
 
 
@@ -32,19 +32,21 @@ class Indicator:
             if factor == -1:
                 return data
             return data / factor
-        def set_series(data: Series, df: DataFrame, col: str, i: int, l: int):
-            df.loc[i + self._skip_num -1: i + l, col] = data[self._skip_num-1:]
+
+        def set_series(data: Series, df: DataFrame, col: str, i: int, le: int):
+            df.loc[i + self._skip_num - 1: i + le, col]\
+                  = data[self._skip_num-1:]
 
         result = self._fct(self._params, df.iloc[ix: ix+cnt])
 
-        if isinstance(result, Series):     
-            set_series(normalize(result, self._norm_factor), 
+        if isinstance(result, Series):
+            set_series(normalize(result, self._norm_factor),
                        df, col, ix, cnt)
         elif isinstance(result, tuple):
-            set_series(normalize(result[0], self._norm_factor[0]), 
+            set_series(normalize(result[0], self._norm_factor[0]),
                        df, col, ix, cnt)
             for i, res in enumerate(result[1:]):
-                set_series(normalize(res, self._norm_factor[i+1]), 
+                set_series(normalize(res, self._norm_factor[i+1]),
                            df, f"{col}_{i+2}", ix, cnt)
 
     def get_skip_cnt(self) -> int:
@@ -52,7 +54,7 @@ class Indicator:
 
     def get_norm_factor(self) -> float:
         return self._norm_factor
-    
+
     def get_unique_id(self) -> str:
         return f"{self._name}_{json.dumps(self._params, sort_keys=True)}"
 
@@ -94,7 +96,7 @@ class IndicatorDescription:
             else parameter_values[self._skip_parameter]
 
         return Indicator(self._name,
-                         parameter_values,
+                         parameter_values.copy(),
                          self._fct,
                          skip_cnt,
                          self._norm_factor)
@@ -104,6 +106,7 @@ class IndicatorDescription:
             return len(self._norm_factor)
         else:
             return 1
+
 
 class IndicatorPrototype(ABC):
     def __init__(self,
@@ -131,5 +134,5 @@ class IndicatorPrototype(ABC):
         pass
 
     def get_parameter_descriptions(self) \
-        -> typing.Collection[IndicatorParameterDescription]:
+            -> typing.Collection[IndicatorParameterDescription]:
         return self._params

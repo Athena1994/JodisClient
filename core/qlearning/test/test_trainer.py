@@ -2,6 +2,7 @@
 
 import copy
 import math
+import os
 from typing import Tuple
 import unittest
 
@@ -11,7 +12,8 @@ import torch
 
 from core.qlearning.q_arbiter import DQNWrapper, DeepQFunction, QSigArbiter
 from core.qlearning.replay_buffer import Experience, ReplayBuffer
-from core.qlearning.trainer import DQNTrainer, calculate_target_q, perform_training_step
+from core.qlearning.trainer \
+    import DQNTrainer, calculate_target_q, perform_training_step
 
 
 class DummyReplayBuffer(ReplayBuffer):
@@ -44,6 +46,7 @@ class DummyReplayBuffer(ReplayBuffer):
 class TestTrainer(unittest.TestCase):
 
     def test_training_step(self):
+        print(os.environ.get('CUBLAS_WORKSPACE_CONFIG'))
         input_tensor = Tensor([(0, 0), (0, 1), (1, 0), (1, 1)])
         target_tensor = Tensor([(1, 0), (0, 1), (0, 1), (1, 0)])
 
@@ -86,6 +89,7 @@ class TestTrainer(unittest.TestCase):
             def __init__(self, data):
                 super().__init__()
                 self._data = Tensor(data)
+
             def forward(self, x):
                 res = self._data[x.long()]
                 return torch.flatten(res, 1, 2)
@@ -103,7 +107,7 @@ class TestTrainer(unittest.TestCase):
 
         discount_factor = 0.5
         expected_q = rewards \
-                     + discount_factor * max_q_per_state[next_states.flatten()]
+            + discount_factor * max_q_per_state[next_states.flatten()]
         target_q = calculate_target_q(nn,
                                       Tensor(rewards),
                                       Tensor(next_states),
@@ -128,8 +132,9 @@ class TestTrainer(unittest.TestCase):
         def experience_provider():
             test_exp = [e.old_state
                         for e in test_replay_buffer.get_experiences()]
-            trainer_exp = [e.old_state
-                        for e in trainer.get_replay_buffer().get_experiences()]
+            trainer_exp \
+                = [e.old_state
+                   for e in trainer.get_replay_buffer().get_experiences()]
             for r, c in zip(trainer_exp, test_exp):
                 self.assertListEqual(list(c[0]), list(r[0]))
                 self.assertListEqual(list(c[1]), list(r[1]))
@@ -203,6 +208,7 @@ class TestTrainer(unittest.TestCase):
         # fill replay buffer
         #
         ix = 0  # index for experience provider
+
         def experience_provider():
             nonlocal ix
             self.assertLessEqual(ix, batch_size)
@@ -286,9 +292,9 @@ class TestTrainer(unittest.TestCase):
 
         reward_map = np.array([[100,  -1,  -1,  -1, -1, -50, 42],
                                [-50, -50, -50, -50, -1, -50,  -1],
-                               [ -1,  -1,  -1, -50, -1, -50,  -1],
-                               [ -1, -50,  -1, -50, -1, -50,  -1],
-                               [ -1, -50,  -1,  -1, -1, -50,  -1],
+                               [ -1,  -1,  -1, -50, -1, -50,  -1], # noqa
+                               [ -1, -50,  -1, -50, -1, -50,  -1], # noqa
+                               [ -1, -50,  -1,  -1, -1, -50,  -1], # noqa
                                [100, -50, 100, -50, -1,  -1,  -1]])
         reward_map = reward_map.transpose(1, 0)
 
@@ -348,6 +354,7 @@ class TestTrainer(unittest.TestCase):
         current_loc = None
         current_map = None
         loc_lst = None
+
         def explore_state():
             nonlocal current_loc, current_map, loc_lst
             if current_loc is None:
@@ -393,7 +400,6 @@ class TestTrainer(unittest.TestCase):
 
         width = reward_map.shape[0]
         height = reward_map.shape[1]
-        input_size = width * height * 4
 
         dqn = DQNWrapper(torch.nn.Sequential(
             nn.BatchNorm2d(4),
@@ -469,7 +475,4 @@ class TestTrainer(unittest.TestCase):
             dir = ["L", "T", "R", "B"]
 
             t = [f"--{dir[e[1]]}({e[2]})-->{e[3]}" for e in lst]
-            print(reward_sum,''.join([str(lst[0][0])] + t))
-#            print(test_map.transpose(1,0))
-
-#            print("ix:", ix, "reward:", reward_sum)
+            print(reward_sum, ''.join([str(lst[0][0])] + t))

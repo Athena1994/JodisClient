@@ -2,8 +2,9 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 import enum
-from typing import Dict, List, Self
+from typing import Self
 import torch
+
 
 class ChunkType(enum.Enum):
     TRAINING = "tr"
@@ -30,7 +31,7 @@ class ChunkType(enum.Enum):
             return ChunkType.TEST
         else:
             raise ValueError(f"Chunk type with value {i} not supported.")
-        
+
     @staticmethod
     def from_str(s: str) -> Self:
         if s == "tr":
@@ -42,10 +43,12 @@ class ChunkType(enum.Enum):
         else:
             raise ValueError(f"Chunk type {s} not supported.")
 
+
 @dataclass
 class Sample:
     tensor: torch.Tensor
     context: dict
+
 
 class ChunkReader:
     def __iter__(self) -> Self:
@@ -64,7 +67,6 @@ class ChunkReader:
         pass
 
 
-
 class ChunkIterator:
     def __init__(self) -> None:
         super().__init__()
@@ -80,10 +82,12 @@ class ChunkIterator:
     def __len__(self) -> int:
         pass
 
+
 class DataProvider:
     @abstractmethod
     def get_iterator(self, chunk_type: ChunkType):
         pass
+
 
 class ContinuousProvider(DataProvider):
     def __init__(self):
@@ -100,6 +104,7 @@ class ContinuousProvider(DataProvider):
     @abstractmethod
     def update_sample(self, sample: Sample) -> Sample:
         pass
+
 
 class ChunkProvider(DataProvider):
     def __init__(self):

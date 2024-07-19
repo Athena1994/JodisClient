@@ -3,10 +3,12 @@
 import unittest
 
 import pandas as pd
+from core.qlearning.q_arbiter import Arbiter
 from core.simulation.sample_provider import State
 from program.experience_provider import *
 
-class DummyArbiter(Arbiter):    
+
+class DummyArbiter(Arbiter):
     def __init__(self):
         self._action = None
 
@@ -17,7 +19,7 @@ class DummyArbiter(Arbiter):
         return self._action
 
 class TestExperienceProvider(unittest.TestCase):
-        
+
     def test_init(self):
         sim_config = {
         "general": {
@@ -46,7 +48,7 @@ class TestExperienceProvider(unittest.TestCase):
                         ], "else": [
                             {"!": "return", "value": "{wait_penalty}"}
                         ]}
-                    ]}                    
+                    ]}
                 ]}
             ],
 
@@ -66,18 +68,18 @@ class TestExperienceProvider(unittest.TestCase):
                 "date": pd.date_range(start='1/1/2021', periods=100),
                 "close": range(1, 101),
                 "chunk": chunks,
-                "chunk_type": [0]*60 + [1]*20 + [2]*20, 
+                "chunk_type": [0]*60 + [1]*20 + [2]*20,
             }
         )
         arbiter = DummyArbiter()
         data_provider = AssetProvider(df, ['close'], 'none', 5)
-        experience_provider = ExperienceProvider(data_provider, 
+        experience_provider = ExperienceProvider(data_provider,
                                                  arbiter,
                                                  sim_config)
-        
+
         for _ in range(2):
             experience_provider.start_session('tr')
-        
+
             arbiter.set_next_action(Action.BUY)
             exp = experience_provider.provide_experience() #(0; 5->6/11)
             self.assertIsNotNone(exp)
@@ -124,9 +126,9 @@ class TestExperienceProvider(unittest.TestCase):
             self.assertEqual(exp.old_state.episode, exp.new_state.episode)
             self.assertEqual(exp.new_state.episode, 0)
             self.assertEqual(exp.old_state.simulation ['money'], 0)
-            self.assertEqual(exp.old_state.simulation['asset'], 200)        
+            self.assertEqual(exp.old_state.simulation['asset'], 200)
             self.assertEqual(exp.action, Action.SELL)
-            self.assertEqual(exp.reward, 
+            self.assertEqual(exp.reward,
                             (200 * exp.old_state.context['close']) - 1000)
             self.assertEqual(exp.new_state.simulation['money'], 1000)
             self.assertEqual(exp.new_state.simulation['asset'], 0)
@@ -135,27 +137,27 @@ class TestExperienceProvider(unittest.TestCase):
                                             ._reward_processor
                                             ._working_env)
 
-            arbiter.set_next_action(Action.HOLD)   
+            arbiter.set_next_action(Action.HOLD)
             exp = experience_provider.provide_experience()  #(0; 9->10/11)
             self.assertIsNotNone(exp)
             exp, weight = exp
             self.assertEqual(exp.old_state.episode, exp.new_state.episode)
             self.assertEqual(exp.new_state.episode, 0)
             self.assertEqual(exp.old_state.simulation ['money'], 1000)
-            self.assertEqual(exp.old_state.simulation['asset'], 0)        
+            self.assertEqual(exp.old_state.simulation['asset'], 0)
             self.assertEqual(exp.action, Action.HOLD)
             self.assertEqual(exp.reward, -1)
             self.assertEqual(exp.new_state.simulation['money'], 1000)
             self.assertEqual(exp.new_state.simulation['asset'], 0)
 
-            arbiter.set_next_action(Action.BUY)   
+            arbiter.set_next_action(Action.BUY)
             exp = experience_provider.provide_experience()  #(0; 10->11/11)
             self.assertIsNotNone(exp)
             exp, weight = exp
             self.assertEqual(exp.old_state.episode, exp.new_state.episode)
             self.assertEqual(exp.new_state.episode, 0)
             self.assertEqual(exp.old_state.simulation ['money'], 1000)
-            self.assertEqual(exp.old_state.simulation['asset'], 0)        
+            self.assertEqual(exp.old_state.simulation['asset'], 0)
             self.assertEqual(exp.action, Action.BUY)
             self.assertEqual(exp.reward, 2)
             self.assertEqual(exp.new_state.simulation['money'], 0)
@@ -171,7 +173,7 @@ class TestExperienceProvider(unittest.TestCase):
             self.assertEqual(exp.old_state.episode, exp.new_state.episode)
             self.assertEqual(exp.new_state.episode, 0)
             self.assertEqual(exp.old_state.simulation ['money'], 0)
-            self.assertEqual(exp.old_state.simulation['asset'], 100)        
+            self.assertEqual(exp.old_state.simulation['asset'], 100)
             self.assertEqual(exp.action, Action.BUY)
             self.assertEqual(exp.reward, -10)
             self.assertEqual(exp.new_state.simulation['money'], 0)
@@ -184,7 +186,7 @@ class TestExperienceProvider(unittest.TestCase):
 
 
 
-            arbiter.set_next_action(Action.HOLD)  
+            arbiter.set_next_action(Action.HOLD)
             exp = experience_provider.provide_experience()  #(1; 5->6/10)
             env = experience_provider._reward_processor._working_env
 
@@ -194,7 +196,7 @@ class TestExperienceProvider(unittest.TestCase):
             self.assertEqual(exp.old_state.episode, exp.new_state.episode)
             self.assertEqual(exp.new_state.episode, 1)
             self.assertEqual(exp.old_state.simulation ['money'], 1000)
-            self.assertEqual(exp.old_state.simulation['asset'], 0)        
+            self.assertEqual(exp.old_state.simulation['asset'], 0)
             self.assertEqual(exp.action, Action.HOLD)
             self.assertEqual(exp.reward, -1)
             self.assertEqual(exp.new_state.simulation['money'], 1000)
@@ -215,7 +217,7 @@ class TestExperienceProvider(unittest.TestCase):
                     exp, weight = exp
                     self.assertEqual(exp.old_state.episode, exp.new_state.episode)
                     self.assertEqual(exp.new_state.episode, j+2)
-                    
+
             self.assertIsNone(experience_provider.provide_experience())
 
 
@@ -242,7 +244,7 @@ class TestExperienceProvider(unittest.TestCase):
                         ], "else": [
                             {"!": "return", "value": "{wait_penalty}"}
                         ]}
-                    ]}                    
+                    ]}
                 ]}
             ],
 
@@ -253,7 +255,7 @@ class TestExperienceProvider(unittest.TestCase):
                 "wait_penalty": -1
             }
         }
-        
+
         proc = CommandProcessor(conf)
 
         def test_proc():

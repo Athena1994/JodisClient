@@ -1,8 +1,5 @@
 import copy
-from typing import  Tuple, Callable
-
-#import numpy as np
-#from numpy.random import choice
+from typing import Tuple, Callable
 
 import torch
 from torch import Tensor, nn

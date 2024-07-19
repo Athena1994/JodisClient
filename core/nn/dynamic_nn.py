@@ -1,9 +1,7 @@
-import torch
-
 import torch.nn as nn
-import torch.nn.functional as F
 
 from core.data.technical_indicators.collection import IndicatorCollection
+
 
 class DynamicNN(nn.Module):
     @staticmethod
@@ -21,7 +19,7 @@ class DynamicNN(nn.Module):
                 ind_desc = IndicatorCollection.get(indicator['name'])
                 size += ind_desc.get_value_cnt()
 
-        return size        
+        return size
 
     @staticmethod
     def _create_layers(input_size: int, structure: list):
@@ -35,7 +33,7 @@ class DynamicNN(nn.Module):
             elif layer_desc['type'].upper() == 'Dropout'.upper():
                 layers.append(nn.Dropout(layer_desc['p']))
             elif layer_desc['type'].upper() == 'linear'.upper():
-                layers.append(nn.Linear(layer_input, 
+                layers.append(nn.Linear(layer_input,
                                         layer_desc['size']))
                 layer_input = layer_desc['size']
             else:
@@ -50,15 +48,14 @@ class DynamicNN(nn.Module):
         input_size = self._determine_input_size(config['data'])
         hidden_size = structure['LSTM']['hidden_size']
 
-        self.LSTM = nn.LSTM(input_size=input_size, 
-                            hidden_size=hidden_size, 
-                            num_layers=structure['LSTM']['num_layers'], 
+        self.LSTM = nn.LSTM(input_size=input_size,
+                            hidden_size=hidden_size,
+                            num_layers=structure['LSTM']['num_layers'],
                             batch_first=True)
 
-        self.classifier = self._create_layers(hidden_size, 
-                                         structure['classifier'])
-        
-    
+        self.classifier = self._create_layers(hidden_size,
+                                              structure['classifier'])
+
     def forward(self, x):
         x, _ = self.LSTM(x)
         x = x[:, -1, :]

@@ -133,7 +133,7 @@ class AssetChunkReader(ChunkReader):
         return len(self._tensor) - self._window_size + 1
 
     def __next__(self) -> Sample:
-        if self.is_exausted():
+        if self.is_exhausted():
             raise StopIteration()
 
         ix_start = self._ix
@@ -144,5 +144,5 @@ class AssetChunkReader(ChunkReader):
         return Sample(self._tensor[ix_start:ix_end],
                       self._context.iloc[ix_end-1])
 
-    def is_exausted(self) -> bool:
+    def is_exhausted(self) -> bool:
         return self._ix + self._window_size > len(self._tensor)

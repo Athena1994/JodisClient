@@ -76,3 +76,4 @@ class QSigArbiter(Arbiter):
                                                  np.sum(random))
 
         return action_ix
+

@@ -63,7 +63,7 @@ class ChunkReader:
         pass
 
     @abstractmethod
-    def is_exausted(self) -> bool:
+    def is_exhausted(self) -> bool:
         pass
 
 

@@ -1,13 +1,11 @@
 import random
 import pandas as pd
 
+from core.data.data_provider import ChunkType
+
 from .technical_indicators.indicators import IndicatorDescription
 from .technical_indicators.collection import IndicatorCollection
 
-class ChunkType:
-    TRAINING = 0
-    VALIDATION = 1
-    TEST = 2
 
 class CandleInterval:
     ONE_MINUTE = "ONE_MINUTE"

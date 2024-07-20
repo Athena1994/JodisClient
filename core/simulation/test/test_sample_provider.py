@@ -118,8 +118,8 @@ class TestSampleProvider(TestCase):
         out_cont2['b'] += 1
         out_chunk1['c'] += 1
         out_chunk2['d'] += 1
-        cont1.expected_update_sample = s["cont1"]
-        cont2.expected_update_sample = s["cont2"]
+        cont1._expected_update_sample = s["cont1"]
+        cont2._expected_update_sample = s["cont2"]
 
         sp.update_values(s)
         self.assertEqual(s['cont1'].context['a'], 3)

@@ -10,7 +10,7 @@ class DummyContProvider(ContinuousProvider):
         self.test = ut
 
         self.last_iter_type = None
-        self.expected_update_sample = None
+        self._expected_update_sample = None
 
         self.next_sample = None
 
@@ -23,6 +23,9 @@ class DummyContProvider(ContinuousProvider):
                 self.next_sample = self.next_sample[0]
         else:
             ns = self.next_sample
+
+        self._expected_update_sample = ns
+
         return Sample(ns.tensor, ns.context.copy())
 
     def get_iterator(self, chunk_type: ChunkType) -> Self:
@@ -33,7 +36,7 @@ class DummyContProvider(ContinuousProvider):
         return self._pop()
 
     def update_sample(self, sample: Sample) -> None:
-        self.test.assertEqual(self.expected_update_sample, sample)
+        self.test.assertEqual(self._expected_update_sample, sample)
         return self._pop()
 
 
@@ -108,4 +111,3 @@ class DummyChunkProvider(ChunkProvider):
 
     def get_chunk_signature(self) -> str:
         return self.chunk_signature
-

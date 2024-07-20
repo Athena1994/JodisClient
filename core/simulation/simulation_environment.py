@@ -19,7 +19,7 @@ class State:
 class SimulationEnvironment:
 
     @abstractmethod
-    def get_initial_context(self):
+    def get_initial_context(self) -> dict:
         pass
 
     @abstractmethod

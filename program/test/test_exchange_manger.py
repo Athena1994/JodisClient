@@ -43,7 +43,7 @@ class TestExchanger(TestCase):
         self.assertEqual(details.fee.relative, 0.1)
         self.assertEqual(details.fee.fixed, 1)
 
-        receipt = exchanger.perform_exchange('USD',
+        receipt = exchanger.prepare_exchange('USD',
                                              'BTC',
                                              1000,
                                              ExchangeDirection.BUY)
@@ -54,7 +54,7 @@ class TestExchanger(TestCase):
         self.assertEqual(receipt.currency, 'USD')
         self.assertEqual(receipt.asset, 'BTC')
 
-        receipt = exchanger.perform_exchange('USD',
+        receipt = exchanger.prepare_exchange('USD',
                                              'BTC',
                                              10,
                                              ExchangeDirection.SELL)

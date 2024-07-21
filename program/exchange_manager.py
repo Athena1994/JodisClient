@@ -39,7 +39,7 @@ class Exchanger:
         pass
 
     @abstractmethod
-    def perform_exchange(self,
+    def prepare_exchange(self,
                          currency: str,
                          asset: str,
                          amount: float,
@@ -98,7 +98,7 @@ class StateSourcedExchanger(Exchanger):
 
         return Exchanger.PairDetails(rate, rate, conf['fee'])
 
-    def perform_exchange(self,
+    def prepare_exchange(self,
                          currency: str,
                          asset: str,
                          amount: float,

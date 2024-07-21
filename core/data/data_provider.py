@@ -2,6 +2,7 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 import enum
+import json
 from typing import Self
 import torch
 
@@ -48,6 +49,30 @@ class ChunkType(enum.Enum):
 class Sample:
     tensor: torch.Tensor
     context: dict
+
+    def __hash__(self) -> int:
+        if self.tensor is None:
+            h1 = 0
+        else:
+            h1 = hash(str(self.tensor))
+
+        if self.context is None:
+            h2 = 0
+        else:
+            h2 = hash(json.dumps(self.context))
+
+        return hash(h1+h2)
+
+    def __eq__(self, other: Self) -> bool:
+        if other is None:
+            return False
+
+        if self.tensor is None or other.tensor is None:
+            return self.tensor == other.tensor \
+                and self.context == other.context
+
+        return torch.equal(self.tensor, other.tensor) \
+            and self.context == other.context
 
 
 class ChunkReader:

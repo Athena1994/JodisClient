@@ -64,7 +64,7 @@ class ExperienceProvider:
         )
         reward = self._simulation.calculate_reward(current_state,
                                                    next_state,
-                                                   action)
+                                                   action, self._mode)
 
         self._update_state(
             self._simulation.on_action(self._state_manager.get_context(),
@@ -88,13 +88,14 @@ class ExperienceProvider:
 
     def _advance_state(self, context: dict) -> State:
         self._state_manager.reset_state(context)
-        self._state_manager.update_samples(
-            self._sample_provider.get_next_samples()
-        )
+        samples = self._sample_provider.get_next_samples()
+        self._state_manager.update_samples(samples)
+        context = self._simulation.on_new_samples(samples, context, self._mode)
+        self._update_state(context)
         return self._state_manager.get_state()
 
     def _start_next_episode(self):
         self._advance_state(
             self._simulation.on_episode_start(
-                self._state_manager.get_context())
+                self._state_manager.get_context(), self._mode)
         )

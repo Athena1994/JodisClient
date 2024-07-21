@@ -23,6 +23,19 @@ class SimulationEnvironment:
         pass
 
     @abstractmethod
+    def on_episode_start(self,
+                         context: dict,
+                         mode: ChunkType) -> dict:
+        pass
+
+    @abstractmethod
+    def on_new_samples(self,
+                       samples: Dict[str, Sample],
+                       context: dict,
+                       mode: ChunkType) -> dict:
+        pass
+
+    @abstractmethod
     def perform_transition(self,
                            samples: Dict[str, Sample],
                            context: dict,
@@ -31,19 +44,16 @@ class SimulationEnvironment:
         pass
 
     @abstractmethod
-    def calculate_reward(self,
-                         old_state: State,
-                         new_state: State,
-                         action: int) -> float:
-        pass
-
-    @abstractmethod
-    def on_episode_start(self, context: dict) -> dict:
-        pass
-
-    @abstractmethod
     def on_action(self,
                   context: dict,
                   action: int,
                   mode: ChunkType) -> dict:
+        pass
+
+    @abstractmethod
+    def calculate_reward(self,
+                         old_state: State,
+                         new_state: State,
+                         action: int,
+                         mode: ChunkType) -> float:
         pass

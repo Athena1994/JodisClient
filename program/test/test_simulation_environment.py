@@ -67,7 +67,8 @@ class TestSimulationEnvironment(unittest.TestCase):
         with self.assertRaises(Exception):
             te = TradingEnvironment({'constants': {}}, sm)
 
-        te = TradingEnvironment({'constants': self.constants}, sm)
+        te = TradingEnvironment(TradingEnvironment.Config.from_dict(
+            {'constants': self.constants}), sm)
 
         self.assertDictEqual(te.get_initial_context(), {
             'asset': {'BTC': 0, 'EUR': 1000},
@@ -82,7 +83,8 @@ class TestSimulationEnvironment(unittest.TestCase):
 
     def test_on_action(self):
         sm = DummyExchanger(self)
-        te = TradingEnvironment({'constants': self.constants}, sm)
+        te = TradingEnvironment(TradingEnvironment.Config.from_dict(
+            {'constants': self.constants}), sm)
 
         init_context = te.get_initial_context()
 
@@ -260,7 +262,8 @@ class TestSimulationEnvironment(unittest.TestCase):
     def test_calculate_reward(self):
 
         sm = DummyExchanger(self)
-        te = TradingEnvironment({'constants': self.constants}, sm)
+        te = TradingEnvironment(TradingEnvironment.Config.from_dict(
+            {'constants': self.constants}), sm)
 
         init_context = te.get_initial_context()
 
@@ -318,7 +321,8 @@ class TestSimulationEnvironment(unittest.TestCase):
 
     def test_on_episode_start(self):
         sm = DummyExchanger(self)
-        te = TradingEnvironment({'constants': self.constants}, sm)
+        te = TradingEnvironment(TradingEnvironment.Config.from_dict(
+            {'constants': self.constants}), sm)
 
         init_context = te.get_initial_context()
 
@@ -355,7 +359,8 @@ class TestSimulationEnvironment(unittest.TestCase):
 
     def test_on_new_samples(self):
         sm = DummyExchanger(self)
-        te = TradingEnvironment({'constants': self.constants}, sm)
+        te = TradingEnvironment(TradingEnvironment.Config.from_dict(
+            {'constants': self.constants}), sm)
 
         sm.expected_action = ExchangeDirection.SELL
         sm.expected_currency = 'EUR'
@@ -395,7 +400,8 @@ class TestSimulationEnvironment(unittest.TestCase):
 
     def test_transition(self):
         ex = DummyExchanger(self)
-        te = TradingEnvironment({'constants': self.constants}, ex)
+        te = TradingEnvironment(TradingEnvironment.Config.from_dict(
+            {'constants': self.constants}), ex)
 
         ex.expected_currency = 'EUR'
         ex.expected_asset = 'BTC'

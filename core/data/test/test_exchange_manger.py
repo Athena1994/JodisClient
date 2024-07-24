@@ -11,9 +11,9 @@ class TestExchanger(TestCase):
     def test_state_source_exchanger(self):
         sm = StateManager()
 
-        exchanger = StateSourcedExchanger(sm, {
-            'pairs': [
-                {
+        exchanger = StateSourcedExchanger(
+            sm, StateSourcedExchanger.Config.from_dict({
+                'pairs': [{
                     'asset': 'BTC',
                     'currency': 'USD',
                     'fee': {
@@ -21,9 +21,8 @@ class TestExchanger(TestCase):
                         'fixed': 1
                     },
                     'candle_src': 'test'
-                }
-            ]
-        })
+                }]
+            }))
 
         with self.assertRaises(Exception):
             exchanger.get_exchange_details('USD', 'ETH')

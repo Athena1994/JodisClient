@@ -1,4 +1,5 @@
 
+from dataclasses import dataclass
 from pandas import DataFrame
 from typing import Dict
 
@@ -6,6 +7,7 @@ from torch import Tensor
 from core.data.data_provider import ChunkType, ContinuousProvider, Sample
 from core.data.normalizer import Normalizer
 from core.simulation.simulation_environment import State
+from utils.config_utils import assert_fields_in_dict
 
 
 class StateManager:
@@ -43,21 +45,29 @@ class StateManager:
 
 class StateProvider(ContinuousProvider):
 
+    @dataclass
+    class Config:
+        normalizer: Normalizer.Config
+        include: list[str]
+
+        @staticmethod
+        def from_dict(conf: dict) -> 'StateProvider.Config':
+            assert_fields_in_dict(conf, ['normalizer', 'include'])
+            return StateProvider.Config(
+                Normalizer.Config.from_dict(conf['normalizer']),
+                conf['include'])
+
     def __init__(self,
                  state_manager: StateManager,
                  normalizer: Normalizer,
-                 conf: dict) -> None:
+                 cfg: Config) -> None:
         super().__init__()
         self._state_manager = state_manager
         self._normalizer = normalizer
 
-        if "normalizer" not in conf:
-            raise ValueError("Normalizer field not found in config.")
-        self._normalizer_conf = conf['normalizer']
+        self._normalizer_conf = cfg.normalizer
 
-        if "include" not in conf:
-            raise ValueError("Include field not found in config.")
-        self._fields = conf["include"]
+        self._fields = cfg.include
 
     def get_iterator(self, chunk_type: ChunkType) -> "StateProvider":
         return self

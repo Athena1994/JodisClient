@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from core.simulation.state_manager import StateManager
+from utils.config_utils import assert_fields_in_dict
 
 
 class ExchangeDirection(Enum):
@@ -48,31 +49,52 @@ class Exchanger:
 
 
 class StateSourcedExchanger(Exchanger):
-    def _assert_dict_keys(self, config: dict, fields: list):
-        for field in fields:
-            if field not in config:
-                raise Exception(f"Missing key '{field}' in configuration")
+
+    @dataclass
+    class Config:
+        @dataclass
+        class Pair:
+            asset: str
+            currency: str
+            fee: Exchanger.FeeDetails
+            candle_src: str
+
+            @staticmethod
+            def from_dict(conf: dict) -> 'StateSourcedExchanger.Config.Pair':
+                assert_fields_in_dict(conf, ['asset', 'currency', 'fee',
+                                             'candle_src'])
+                assert_fields_in_dict(conf['fee'], ['relative', 'fixed'])
+                return StateSourcedExchanger.Config.Pair(
+                    conf['asset'],
+                    conf['currency'],
+                    Exchanger.FeeDetails(
+                        conf['fee']['relative'],
+                        conf['fee']['fixed']),
+                    conf['candle_src'])
+
+        pairs: list[Pair]
+
+        @staticmethod
+        def from_dict(conf: dict) -> 'StateSourcedExchanger.Config':
+            assert_fields_in_dict(conf, ['pairs'])
+            return StateSourcedExchanger.Config(
+                [StateSourcedExchanger.Config.Pair.from_dict(d)
+                 for d in conf['pairs']])
 
     def __init__(self,
                  state_manager: StateManager,
-                 config: dict) -> None:
+                 cfg: Config) -> None:
         super().__init__()
-        self._assert_dict_keys(config, ['pairs'])
 
         self._state_manager = state_manager
 
         self._exchange_config = {}
 
-        for pair in config['pairs']:
-            self._assert_dict_keys(pair, ['asset', 'currency', 'fee',
-                                          'candle_src'])
-            self._assert_dict_keys(pair['fee'], ['relative', 'fixed'])
-
-            pair_name = f'{pair["asset"]}{pair["currency"]}'
+        for pair in cfg.pairs:
+            pair_name = f'{pair.asset}{pair.currency}'
             self._exchange_config[pair_name] = {
-                'fee': Exchanger.FeeDetails(pair['fee']['relative'],
-                                            pair['fee']['fixed']),
-                'candle_src': pair['candle_src']
+                'fee': pair.fee,
+                'candle_src': pair.candle_src
             }
 
     @staticmethod

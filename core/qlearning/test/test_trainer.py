@@ -2,7 +2,6 @@
 
 import copy
 import math
-import os
 from typing import Tuple
 import unittest
 
@@ -12,8 +11,8 @@ import torch
 
 from core.qlearning.q_arbiter import DQNWrapper, DeepQFunction, QSigArbiter
 from core.qlearning.replay_buffer import Experience, ReplayBuffer
-from core.qlearning.trainer \
-    import DQNTrainer, calculate_target_q, perform_training_step
+from core.qlearning.dqn_trainer \
+    import DQNTrainer, calculate_target_q
 
 
 class DummyReplayBuffer(ReplayBuffer):
@@ -44,6 +43,37 @@ class DummyReplayBuffer(ReplayBuffer):
 
 
 class TestTrainer(unittest.TestCase):
+
+    def test_init(self):
+        cfg_dict = {
+            "qlearning": {
+                "replay_buffer_size": 8192,
+                "update_target_network_after": 4096,
+                "discount_factor": 0.99
+            },
+            "exploration": {
+                "sigma": 0.01
+            },
+            "optimizer": {
+                "type": "adam",
+                "learning_rate": 0.001,
+                "weight_decay": 0.0001
+            },
+            "iterations": {
+                "max_epoch_cnt": 128,
+                "batch_cnt": 64,
+                "batch_size": 32,
+                "experience_cnt": 2048
+            }
+        }
+        cfg = DQNTrainer.Config.from_dict(cfg_dict)
+
+        dummy_nn = nn.Linear(8, 32)
+
+        trainer = DQNTrainer.from_config(dummy_nn, cfg)
+        self.assertIsNotNone(trainer)
+
+
 
     # def test_training_step(self):
     #     print(os.environ.get('CUBLAS_WORKSPACE_CONFIG'))

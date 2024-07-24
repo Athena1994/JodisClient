@@ -10,14 +10,9 @@ from core.nn.dynamic_nn import DynamicNN
 class TestDynamicNN(unittest.TestCase):
 
     CONF = {
-        "general": {
-            "name": "AgentAlpha",
-            "unnormalized_data": "zscore",
-            "input_window": 128
-        },
-
-        "input": [
-            {
+        "input": {
+            "input_window": 128,
+            "data": [{
                 "key": "ts",
                 "type": "asset",
                 "params": {
@@ -41,12 +36,13 @@ class TestDynamicNN(unittest.TestCase):
 
                     "normalizer": {
                         "df_key": "default",
-                        "default_strategy": "zscore",
+                        "default_strategy": {
+                            "type": "zscore"
+                        },
                         "groups": [["open", "high", "close", "low"]]
                     }
                 }
-            },
-            {
+            }, {
                 "key": "meta",
                 "type": "state",
                 "params": {
@@ -55,21 +51,23 @@ class TestDynamicNN(unittest.TestCase):
                         "position_open"
                     ],
                     "normalizer": {
-                        "default_strategy": "none",
+                        "default_strategy": None,
 
-                        "extra":
-                        {
-                            "balance": {
-                                "strategy": "formula",
-                                "params": {
-                                    "expression": "np.log(x)/np.log(1.10)"
+                        "extra": [
+                            {
+                                "column": "balance",
+                                "strategy": {
+                                    "type": "formula",
+                                    "params": {
+                                        "expression": "np.log(x)/np.log(1.10)"
+                                    }
                                 }
                             }
-                        }
+                        ]
                     }
                 }
-            }
-        ],
+            }]
+        },
 
         "nn": {
             "units": [
@@ -112,7 +110,10 @@ class TestDynamicNN(unittest.TestCase):
 
     def test_init(self):
 
-        dnn = DynamicNN(self.CONF['nn'], self.CONF['input'])
+        nn_conf = DynamicNN.Config.from_dict(self.CONF['nn'])
+        input_conf = DynamicNN.Config.Input.from_dict(self.CONF['input'])
+
+        dnn = DynamicNN(nn_conf, input_conf)
 
         self.assertEqual(len(dnn._units), 3)
 
@@ -169,7 +170,10 @@ class TestDynamicNN(unittest.TestCase):
 
     def test_forward(self):
 
-        dnn = DynamicNN(self.CONF['nn'], self.CONF['input'])
+        nn_conf = DynamicNN.Config.from_dict(self.CONF['nn'])
+        input_cfg = DynamicNN.Config.Input.from_dict(self.CONF['input'])
+
+        dnn = DynamicNN(nn_conf, input_cfg)
 
         # --- input
 

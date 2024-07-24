@@ -3,12 +3,15 @@ import unittest
 import pandas as pd
 from torch import Tensor
 import torch
-from program.asset_source import AssetSource
+from core.data.assets.asset_provider import AssetProvider
+from core.data.assets.asset_source import AssetSource
+from core.data.normalizer import Normalizer
 from core.data.data_provider import ChunkType
-from program.asset_provider import AssetProvider
 
 
 class MockNormalizer:
+    conf = Normalizer.Config.from_dict({"a": 2})
+
     def __init__(self, test: unittest.TestCase, off=False) -> None:
         self.test = test
         self.expected_cols = []
@@ -16,23 +19,23 @@ class MockNormalizer:
         self.expect_normalize = False
         self.off = off
 
-    def prepare(self, df: pd.DataFrame, conf: dict) -> None:
+    def prepare(self, df: pd.DataFrame, conf: Normalizer.Config) -> None:
         if self.off:
             return
-        self.test.assertEqual(conf,
-                              {"a": 2})
+        self.test.assertEqual(conf, self.conf)
 
     def set_expected_cols(self, cols: list[str]) -> None:
         self.expected_cols = cols
 
-    def normalize_df(self, df: pd.DataFrame, conf: dict) -> pd.DataFrame:
+    def normalize_df(self, df: pd.DataFrame, conf: Normalizer.Config)\
+            -> pd.DataFrame:
         if self.off:
             return df
 
         if not self.expect_normalize:
             self.test.fail("Unexpected call to normalize_df")
         self.normalized = True
-        self.test.assertEqual(conf, {"a": 2})
+        self.test.assertEqual(conf, self.conf)
         self.test.assertListEqual(list(df.columns), self.expected_cols)
         return df
 
@@ -48,7 +51,8 @@ class TestAssetSource(unittest.TestCase):
         })
 
         normalizer = MockNormalizer(self)
-        src = AssetSource(df, normalizer, {"a": 2})
+        src = AssetSource(df, normalizer,
+                          Normalizer.Config.from_dict({"a": 2}))
 
         normalizer.expect_normalize = False
         res = src.get_data([
@@ -128,7 +132,8 @@ class TestAssetProvider(unittest.TestCase):
                 ['2021-01-20', 20, 6, 2, 2],
                 ['2021-01-21', 21, 6, 2, 1],])
 
-        src = AssetSource(df, MockNormalizer(self, off=True), {})
+        src = AssetSource(df, MockNormalizer(self, off=True),
+                          Normalizer.Config.from_dict({}))
 
         try:
             AssetProvider(src, ['value', 'foo'], [], 1)

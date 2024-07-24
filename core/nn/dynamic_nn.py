@@ -1,10 +1,87 @@
+from dataclasses import dataclass
 import torch
 import torch.nn as nn
 
+from core.data.assets.asset_manager import AssetManager
 from core.data.technical_indicators.collection import IndicatorCollection
+from core.simulation.state_manager import StateProvider
+from utils.config_utils import assert_fields_in_dict
 
 
 class DynamicNN(nn.Module):
+
+    @dataclass
+    class Config:
+        @dataclass
+        class Unit:
+            name: str
+            input: list[str]
+            type: str
+            params: object
+
+            @staticmethod
+            def from_dict(conf: dict) -> 'DynamicNN.Config.Unit':
+                assert_fields_in_dict(conf, ["name", "input", "type", "params"])
+
+                inp = conf['input']
+                if not isinstance(inp, list):
+                    inp = [inp]
+                return DynamicNN.Config.Unit(conf['name'],
+                                             inp,
+                                             conf['type'],
+                                             conf['params'])
+
+        @dataclass
+        class Input:
+            @dataclass
+            class Data:
+
+                key: str
+                type: str
+                config: object
+
+                @staticmethod
+                def from_dict(conf: dict) -> 'DynamicNN.Config.Input':
+                    assert_fields_in_dict(conf, ["key", "type", "params"])
+
+                    if conf['type'].upper() == 'asset'.upper():
+                        config = (AssetManager.Config.Provider
+                                  .from_dict(conf['params']))
+                    elif conf['type'].upper() == 'state'.upper():
+                        config = StateProvider.Config.from_dict(conf['params'])
+                    else:
+                        raise ValueError(f"Unknown input type: {conf['type']}")
+
+                    return DynamicNN.Config.Input.Data(conf['key'],
+                                                       conf['type'],
+                                                       config)
+
+            input_window: int
+            data: list["Data"]
+
+            @staticmethod
+            def from_dict(conf: dict) -> 'DynamicNN.Config.Input':
+                assert_fields_in_dict(conf, ["input_window", "data"])
+
+                return DynamicNN.Config.Input(
+                    conf['input_window'],
+                    [DynamicNN.Config.Input.Data.from_dict(d)
+                     for d in conf['data']]
+                )
+
+        units: list["Unit"]
+        output: str
+
+        @staticmethod
+        def from_dict(conf: dict) -> 'DynamicNN.Config':
+            assert_fields_in_dict(conf, ["units", "output"])
+
+            return DynamicNN.Config(
+                [DynamicNN.Config.Unit.from_dict(d)
+                 for d in conf['units']],
+                conf['output']
+            )
+
     @staticmethod
     def _create_sequential(input_size: int, structure: list):
         layers = []
@@ -24,17 +101,20 @@ class DynamicNN(nn.Module):
                 raise ValueError(f"Unknown layer type: {layer_desc['type']}")
         return nn.Sequential(*layers), layer_input
 
-    def __init__(self, nn_config: dict, input_config: dict):
+    def __init__(self, nn_cfg: Config, input_cfg: Config.Input):
         super(DynamicNN, self).__init__()
 
-        def determine_input_size(input_desc: dict):
-            size = len(input_desc['params'].get('include', []))
-
-            for indicator in input_desc['params'].get('indicators', []):
-                ind_desc = IndicatorCollection.get(indicator['name'])
-                size += ind_desc.get_value_cnt()
-
-            return size
+        def determine_input_size(cfg: DynamicNN.Config.Input):
+            if isinstance(cfg.config, AssetManager.Config.Provider):
+                size = len(cfg.config.include)
+                for indicator in cfg.config.indicators:
+                    ind_desc = IndicatorCollection.get(indicator['name'])
+                    size += ind_desc.get_value_cnt()
+                    return size
+            elif isinstance(cfg.config, StateProvider.Config):
+                return len(cfg.config.include)
+            else:
+                raise ValueError(f"Unknown input type: {type(cfg.config)}")
 
         def make_unit(type: str, input_size: int, params: dict):
             if type.upper() == 'LSTM'.upper():
@@ -47,37 +127,29 @@ class DynamicNN(nn.Module):
             else:
                 raise ValueError(f"Unknown unit type: {type}")
 
-        output_size = {d['key']: determine_input_size(d)
-                       for d in input_config}
+        output_size_dict = {d.key: determine_input_size(d)
+                            for d in input_cfg.data}
 
         self._units = []
 
-        for unit_conf in nn_config['units']:
-            inputs = unit_conf['input']
-            if not isinstance(inputs, list):
-                inputs = [inputs]
-
-            missing = [i for i in inputs if i not in output_size]
+        for unit_conf in nn_cfg.units:
+            missing = [i for i in unit_conf.input if i not in output_size_dict]
             if len(missing) != 0:
                 raise ValueError(f"Missing input data: {missing}")
 
-            name = unit_conf['name']
-
             unit = {}
-            unit['concat'] = len(inputs) > 1
-            unit['name'] = name
-            input_size = sum([output_size[i] for i in inputs])
-            unit['module'], output_size[name] = make_unit(unit_conf['type'],
-                                                          input_size,
-                                                          unit_conf['params'])
-            unit['input'] = inputs
+            unit['concat'] = len(unit_conf.input) > 1
+            unit['name'] = unit_conf.name
+            input_size = sum([output_size_dict[i] for i in unit_conf.input])
+            unit['module'], output_size_dict[unit_conf.name]\
+                = make_unit(unit_conf.type,
+                            input_size,
+                            unit_conf.params)
+            unit['input'] = unit_conf.input
             self._units.append(unit)
 
-        if 'output' not in nn_config:
-            raise ValueError("Output key missing in nn configuration.")
-
-        self._output_key = nn_config['output']
-        if self._output_key not in output_size:
+        self._output_key = nn_cfg.output
+        if self._output_key not in output_size_dict:
             raise ValueError(f"Output key {self._output_key} not found")
 
     def forward(self, x_dict):

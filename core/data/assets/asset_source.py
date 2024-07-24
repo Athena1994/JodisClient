@@ -8,6 +8,7 @@ from core.data.normalizer import Normalizer
 
 
 class AssetSource:
+
     @dataclass
     class DataFrameRequirement:
         key: str
@@ -17,7 +18,7 @@ class AssetSource:
     def __init__(self,
                  df: pd.DataFrame,
                  normalizer: Normalizer,
-                 normalizer_conf: dict) -> None:
+                 normalizer_conf: Normalizer.Config) -> None:
 
         self._df = df.copy()
         self._normalizer = normalizer

@@ -7,8 +7,9 @@ import unittest
 
 import pandas as pd
 
+from core.data.assets.asset_manager import Asset, AssetManager
+
 from core.data.technical_indicators.collection import IndicatorCollection
-from program.data_manager import Asset, DataManager
 
 
 def mock_sql_get(pair: str,
@@ -32,8 +33,8 @@ class TestDataManager(unittest.TestCase):
 
         tmp_dir = tempfile.mkdtemp()
 
-        mock_conf = {
-            "chunk_config": {
+        mock_conf = AssetManager.Config.from_dict({
+            "chunks": {
                 "tr_val_split": 0.8,
                 "test_chunk_cnt": 1,
                 "chunk_size": 2,
@@ -60,28 +61,32 @@ class TestDataManager(unittest.TestCase):
                     "source": "foo"
                 }
             ]
-        }
-        value_conf = [
-            {
-                "asset": {
-                    "name": "bar",
-                    "source": "foo",
-                    "interval": "interval"
-                },
-                "indicators": [
-                    {
-                        "name": "AwesomeOscillator",
-                        "params": {
-                            "short_period": 2,
-                            "long_period": 4
-                        }
+        })
+
+        value_conf = AssetManager.Config.Provider.from_dict({
+            "asset": {
+                "name": "bar",
+                "source": "foo",
+                "interval": "interval"
+            },
+            "indicators": [
+                {
+                    "name": "AwesomeOscillator",
+                    "params": {
+                        "short_period": 2,
+                        "long_period": 4
                     }
-                ],
-                "volume": True,
-                "ohcl": True
-            }]
+                }
+            ],
+            "include": ["volume", "open", "high", "close", "low"],
+            "normalizer": {
+                "df_key": "default",
+                "default_strategy": {"type": "zscore"},
+                "groups": [["open", "high", "close", "low"]]
+            }
+        })
         # assert that DataManager is initialized according to conf
-        dm = DataManager(mock_conf, False)
+        dm = AssetManager(mock_conf, False)
         self.assertEqual(len(dm._assets), 1)
         self.assertEqual(len(dm._sources), 1)
         asset = Asset('bar', 'interval', 'foo')
@@ -100,7 +105,7 @@ class TestDataManager(unittest.TestCase):
         self.assertTrue(len(pd.read_csv(mock_file)), 10)
 
         # assert a fresh DataManager initializes from cache
-        dm = DataManager(mock_conf, False)
+        dm = AssetManager(mock_conf, False)
         dm._sources['foo'].get = mock_sql_get
         self.assertTrue(asset in dm._assets)
         self.assertEqual(len(dm._assets[asset]), 10)
@@ -125,8 +130,8 @@ class TestDataManager(unittest.TestCase):
         self.assertEqual(test_cnt, 1)
         self.assertEqual(round((total_cnt - test_cnt) * 0.8), tr_cnt)
 
-        mock_conf["chunk_config"]["tr_val_split"] = 0.3
-        mock_conf["chunk_config"]["test_chunk_cnt"] = 2
+        mock_conf.chunks.tr_val_split = 0.3
+        mock_conf.chunks.test_chunk_cnt = 2
         dm.update_training_split(False)
         self.assertTrue('chunk_type' in df)
         tr_cnt = len(df[df['chunk_type'] == 0]['chunk'].unique())
@@ -168,6 +173,74 @@ class TestDataManager(unittest.TestCase):
         print(dm._assets[asset])
 
         # tmp dir cleanup
+        for f in os.listdir(tmp_dir):
+            os.remove(os.path.join(tmp_dir, f))
+        os.rmdir(tmp_dir)
+
+    def test_get_asset_df(self):
+
+        tmp_dir = tempfile.mkdtemp()
+
+        mock_conf = AssetManager.Config.from_dict({
+            "chunks": {
+                "tr_val_split": 0.8,
+                "test_chunk_cnt": 1,
+                "chunk_size": 2,
+                "reserve": 0
+            },
+            "sources": [
+                {
+                    "name": "foo",
+                    "type": "sql",
+                    "config": {
+                        "host": "host",
+                        "db": "db",
+                        "table": "table",
+                        "user": "user",
+                        "pw": "pw"
+                    }
+                }
+            ],
+            "assets": [
+                {
+                    "name": "bar",
+                    "interval": "interval",
+                    "file": f"{tmp_dir}/mock_data.csv",
+                    "source": "foo"
+                }
+            ]
+        })
+
+        dm = AssetManager(mock_conf, False)
+        dm._sources['foo'].get = mock_sql_get
+
+        provider_cfg = AssetManager.Config.Provider.from_dict({
+            "asset": {
+                "name": "bar",
+                "source": "foo",
+                "interval": "interval"
+            },
+            "indicators": [
+                {
+                    "name": "AwesomeOscillator",
+                    "params": {
+                        "short_period": 2,
+                        "long_period": 4
+                    }
+                }
+            ],
+            "include": ["volume", "open", "high", "close", "low"],
+            "normalizer": {
+                "df_key": "default",
+                "default_strategy": {"type": "zscore"},
+                "groups": [["open", "high", "close", "low"]]
+            }
+
+        })
+
+        df = dm.get_asset_df(provider_cfg.asset)
+        self.assertIsNotNone(df)
+
         for f in os.listdir(tmp_dir):
             os.remove(os.path.join(tmp_dir, f))
         os.rmdir(tmp_dir)

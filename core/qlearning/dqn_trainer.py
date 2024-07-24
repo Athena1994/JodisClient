@@ -1,4 +1,5 @@
 import copy
+from dataclasses import dataclass
 from typing import Tuple, Callable
 
 import torch
@@ -6,6 +7,7 @@ from torch import Tensor, nn
 from torch.optim import Optimizer
 
 from core.qlearning.replay_buffer import ReplayBuffer, Experience
+from utils.config_utils import assert_fields_in_dict
 
 
 def perform_training_step(nn: torch.nn.Module,
@@ -47,6 +49,86 @@ class DQNTrainer:
         determining the target Q-values. The target network parameters are
         updated after a minimum number of training samples.
     """
+
+    @dataclass
+    class Config:
+        @dataclass
+        class Optimizer:
+            type: str
+            learning_rate: float
+            weight_decay: float
+
+        @dataclass
+        class Iterations:
+            max_epoch_cnt: int
+            batch_cnt: int
+            batch_size: int
+            experience_cnt: int
+
+        @dataclass
+        class Exploration:
+            sigma: float
+
+        @dataclass
+        class QLearning:
+            discount_factor: float
+            update_target_network_after: int
+            replay_buffer_size: int
+
+        optimizer: Optimizer
+        iterations: Iterations
+        qlearning: QLearning
+        exploration: Exploration
+
+        @staticmethod
+        def from_dict(config_dict: dict):
+            assert_fields_in_dict(config_dict,
+                                  ['optimizer', 'iterations', 'qlearning',
+                                   'exploration'])
+            assert_fields_in_dict(config_dict['optimizer'],
+                                  ['type', 'learning_rate', 'weight_decay'])
+            assert_fields_in_dict(config_dict['iterations'],
+                                  ['max_epoch_cnt', 'batch_cnt', 'batch_size',
+                                   'experience_cnt'])
+            assert_fields_in_dict(
+                config_dict['qlearning'],
+                ['discount_factor', 'update_target_network_after',
+                 'replay_buffer_size'])
+            assert_fields_in_dict(config_dict['exploration'], ['sigma'])
+
+            return DQNTrainer.Config(
+                DQNTrainer.Config.Optimizer(
+                    config_dict['optimizer']['type'],
+                    config_dict['optimizer']['learning_rate'],
+                    config_dict['optimizer']['weight_decay']
+                ),
+                DQNTrainer.Config.Iterations(
+                    config_dict['iterations']['max_epoch_cnt'],
+                    config_dict['iterations']['batch_cnt'],
+                    config_dict['iterations']['batch_size'],
+                    config_dict['iterations']['experience_cnt']
+                ),
+                DQNTrainer.Config.QLearning(
+                    config_dict['qlearning']['discount_factor'],
+                    config_dict['qlearning']['update_target_network_after'],
+                    config_dict['qlearning']['replay_buffer_size']
+                ),
+                DQNTrainer.Config.Exploration(
+                    config_dict['exploration']['sigma']
+                ))
+
+    @staticmethod
+    def from_config(dqn: torch.nn.Module, config: Config) -> 'DQNTrainer':
+        if config.optimizer.type != 'adam':
+            raise ValueError('Only Adam optimizer is supported.')
+
+        optimizer = torch.optim.Adam(dqn.parameters(),
+                                     lr=config.optimizer.learning_rate,
+                                     weight_decay=config.optimizer.weight_decay)
+        replay_buffer = ReplayBuffer(config.qlearning.replay_buffer_size)
+        return DQNTrainer(dqn, replay_buffer, optimizer,
+                          config.qlearning.update_target_network_after,
+                          config.qlearning.discount_factor)
 
     def __init__(self,
                  dqn: torch.nn.Module,

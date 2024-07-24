@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import json
 import pandas as pd
 import torch
-from program.asset_source import AssetSource
-from core.data.data_provider\
+from core.data.assets.asset_source import AssetSource
+from core.data.data_provider \
       import ChunkIterator, ChunkProvider, ChunkReader, ChunkType, Sample
 
 

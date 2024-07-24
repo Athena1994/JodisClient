@@ -78,44 +78,27 @@ class TestStateManager(unittest.TestCase):
     def test_state_provider(self):
         sm = StateManager()
         normalizer = Normalizer()
-        conf = {
+        conf = StateProvider.Config.from_dict({
             "normalizer": {
-                "default_strategy": "none",
-                "extra": {
-                    'a': {
-                        "strategy": "minmax",
+                "default_strategy": None,
+                "extra": [
+                    {
+                        "column": "a",
+                        "strategy": {"type": "minmax"},
                         "stats_df": "norm_df",
                         "stats_col": "val",
                     },
-                }
+                ]
             },
             "include": ["a", "b"]
-        }
-
-        df = pd.DataFrame({'val': range(5), 'b': [5]*5})
-        normalizer.prepare(df, {
-            'df_key': 'norm_df'
         })
 
+        df = pd.DataFrame({'val': range(5), 'b': [5]*5})
+        normalizer.prepare(df, Normalizer.Config.from_dict({
+            'df_key': 'norm_df'
+        }))
+
         context = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
-
-        try:
-            sp = StateProvider(sm, normalizer, {})
-            self.fail("Should have raised an exception")
-        except ValueError:
-            pass
-
-        try:
-            sp = StateProvider(sm, normalizer, {"normalizer": {}})
-            self.fail("Should have raised an exception")
-        except ValueError:
-            pass
-
-        try:
-            sp = StateProvider(sm, normalizer, {"include": {}})
-            self.fail("Should have raised an exception")
-        except ValueError:
-            pass
 
         sp = StateProvider(sm, normalizer, conf)
         self.assertEqual(sp.get_iterator(ChunkType.TRAINING), sp)

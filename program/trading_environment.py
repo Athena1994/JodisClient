@@ -1,4 +1,5 @@
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict
 
@@ -7,6 +8,7 @@ import numpy as np
 from core.data.data_provider import ChunkType, Sample
 from core.simulation.simulation_environment import SimulationEnvironment, State
 from program.exchange_manager import ExchangeDirection, Exchanger
+from utils.config_utils import assert_fields_in_dict
 
 
 class ActionType(Enum):
@@ -28,15 +30,23 @@ class ActionType(Enum):
 
 class TradingEnvironment(SimulationEnvironment):
 
+    @dataclass
+    class Config:
+        constants: dict
+
+        @staticmethod
+        def from_dict(conf: dict) \
+                -> 'TradingEnvironment.Config':
+            assert_fields_in_dict(conf, ['constants'])
+            return TradingEnvironment.Config(conf['constants'])
+
     def _get_constant(self, name: str) -> any:
         if name not in self._constants:
             raise Exception(f"Missing constant {name}")
         return self._constants[name]
 
-    def __init__(self, config: dict, exchanger: Exchanger) -> None:
+    def __init__(self, cfg: Config, exchanger: Exchanger) -> None:
         super().__init__()
-        if 'constants' not in config:
-            raise Exception("Missing constants in configuration")
 
         required_constants = ['initial_balance',
                               'buy_reward',
@@ -44,10 +54,10 @@ class TradingEnvironment(SimulationEnvironment):
                               'wait_penalty',
                               'invalid_action_penalty']
         for constant in required_constants:
-            if constant not in config['constants']:
+            if constant not in cfg.constants:
                 raise Exception(f"Missing constant {constant} in configuration")
 
-        self._constants = config['constants']
+        self._constants = cfg.constants
         self._exchanger = exchanger
 
     def get_initial_context(self) -> dict:

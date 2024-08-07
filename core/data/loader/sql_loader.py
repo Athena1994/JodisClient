@@ -12,14 +12,16 @@ class SQLOHCLLoader(OHCLLoader):
                  sql_server: str, sql_db: str, sql_table: str):
         super().__init__()
 
-        self.engine = create_engine(f'mysql+pymysql://{sql_user}:{sql_pw}@{sql_server}/{sql_db}')
+        self.engine = create_engine(f'mysql+pymysql://{sql_user}:'
+                                    f'{sql_pw}@{sql_server}/{sql_db}')
         self.table = sql_table
 
     def get(self, pair: str, interval: str,
             earliest: datetime.datetime = None,
             latest: datetime.datetime = None) -> pd.DataFrame:
         with self.engine.connect() as connection:
-            query = f'SELECT * FROM {self.table} WHERE time_interval="{interval}" AND currency="{pair}"'
+            query = f'SELECT * FROM {self.table} WHERE ' \
+                    f'time_interval="{interval}" AND currency="{pair}"'
             if earliest is not None:
                 query += f' AND time >= "{earliest}"'
             if latest is not None:
@@ -33,7 +35,8 @@ class SQLOHCLLoader(OHCLLoader):
 
     @staticmethod
     def from_config(config: dict):
-        missing_keys = [k for k in config if k not in ['user', 'pw', 'host', 'db', 'table']]
+        missing_keys = [k for k in config if k not in ['user', 'pw', 'host',
+                                                       'db', 'table']]
         if len(missing_keys) != 0:
             raise ValueError('Invalid config! (missing keys: {missing_keys})')
 

@@ -127,7 +127,7 @@ class ContinuousProvider(DataProvider):
         pass
 
     @abstractmethod
-    def update_sample(self, sample: Sample) -> Sample:
+    def provide_sample(self, context: dict):
         pass
 
 

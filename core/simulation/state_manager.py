@@ -1,12 +1,11 @@
-
 from dataclasses import dataclass
-from pandas import DataFrame
 from typing import Dict
 
 from torch import Tensor
 from core.data.data_provider import ChunkType, ContinuousProvider, Sample
 from core.data.normalizer import Normalizer
-from core.simulation.simulation_environment import State
+
+from core.simulation.data_classes import State
 from utils.config_utils import assert_fields_in_dict
 
 
@@ -72,16 +71,18 @@ class StateProvider(ContinuousProvider):
     def get_iterator(self, chunk_type: ChunkType) -> "StateProvider":
         return self
 
+    def provide_sample(self, context: dict):
+        np_dict = {
+            k: [context[k]]
+            for k in context if k in self._fields
+        }
+
+        np_dict = self._normalizer.normalize_data(np_dict,
+                                                  self._normalizer_conf)
+        return Sample(Tensor([np_dict[k][0] for k in np_dict]), context)
+
     def __next__(self) -> Sample:
         context = self._state_manager.get_context()
         if context is None:
             return None
-
-        context_df = DataFrame(context, index=[0])[self._fields]
-        n_df = self._normalizer.normalize_df(context_df,
-                                             self._normalizer_conf)
-
-        return Sample(Tensor(n_df.values).flatten(), context)
-
-    def update_sample(self, sample: Sample) -> Sample:
-        return next(self)
+        return self.provide_sample(context)

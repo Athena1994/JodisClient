@@ -2,8 +2,9 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict
 
-from core.simulation.state_manager import StateManager
+from core.data.data_provider import Sample
 from utils.config_utils import assert_fields_in_dict
 
 
@@ -36,7 +37,8 @@ class Exchanger:
     @abstractmethod
     def get_exchange_details(self,
                              currency: str,
-                             asset: str) -> PairDetails:
+                             asset: str,
+                             samples: Dict[str, Sample]) -> PairDetails:
         pass
 
     @abstractmethod
@@ -44,7 +46,8 @@ class Exchanger:
                          currency: str,
                          asset: str,
                          amount: float,
-                         action: ExchangeDirection) -> Receipt:
+                         action: ExchangeDirection,
+                         samples: Dict[str, Sample]) -> Receipt:
         pass
 
 
@@ -82,11 +85,8 @@ class StateSourcedExchanger(Exchanger):
                  for d in conf['pairs']])
 
     def __init__(self,
-                 state_manager: StateManager,
                  cfg: Config) -> None:
         super().__init__()
-
-        self._state_manager = state_manager
 
         self._exchange_config = {}
 
@@ -103,14 +103,14 @@ class StateSourcedExchanger(Exchanger):
 
     def get_exchange_details(self,
                              currency: str,
-                             asset: str) -> Exchanger.PairDetails:
+                             asset: str,
+                             samples: Dict[str, Sample])\
+            -> Exchanger.PairDetails:
         pair = f'{asset}{currency}'
         if pair not in self._exchange_config:
             raise Exception(f"Exchanger has no pair {pair}")
 
         conf = self._exchange_config[pair]
-
-        samples = self._state_manager.get_samples()
 
         if conf['candle_src'] not in samples:
             raise Exception(f"Missing candle source '{conf['candle_src']}'")
@@ -124,9 +124,10 @@ class StateSourcedExchanger(Exchanger):
                          currency: str,
                          asset: str,
                          amount: float,
-                         action: ExchangeDirection) -> Exchanger.Receipt:
+                         action: ExchangeDirection,
+                         samples: Dict[str, Sample]) -> Exchanger.Receipt:
 
-        details = self.get_exchange_details(currency, asset)
+        details = self.get_exchange_details(currency, asset, samples)
 
         if action == ExchangeDirection.BUY:
             rate = details.buy_rate

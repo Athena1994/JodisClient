@@ -1,10 +1,6 @@
 from dataclasses import dataclass
 import torch
 import torch.nn as nn
-
-from core.data.assets.asset_manager import AssetManager
-from core.data.technical_indicators.collection import IndicatorCollection
-from core.simulation.state_manager import StateProvider
 from utils.config_utils import assert_fields_in_dict
 
 
@@ -42,6 +38,8 @@ class DynamicNN(nn.Module):
 
                 @staticmethod
                 def from_dict(conf: dict) -> 'DynamicNN.Config.Input':
+                    from core.data.assets.asset_manager import AssetManager
+                    from core.simulation.state_manager import StateProvider
                     assert_fields_in_dict(conf, ["key", "type", "params"])
 
                     if conf['type'].upper() == 'asset'.upper():
@@ -102,6 +100,11 @@ class DynamicNN(nn.Module):
         return nn.Sequential(*layers), layer_input
 
     def __init__(self, nn_cfg: Config, input_cfg: Config.Input):
+        from core.data.assets.asset_manager import AssetManager
+        from core.simulation.state_manager import StateProvider
+        from core.data.technical_indicators.collection \
+            import IndicatorCollection
+
         super(DynamicNN, self).__init__()
 
         def determine_input_size(cfg: DynamicNN.Config.Input):
@@ -110,7 +113,7 @@ class DynamicNN(nn.Module):
                 for indicator in cfg.config.indicators:
                     ind_desc = IndicatorCollection.get(indicator['name'])
                     size += ind_desc.get_value_cnt()
-                    return size
+                return size
             elif isinstance(cfg.config, StateProvider.Config):
                 return len(cfg.config.include)
             else:
@@ -147,10 +150,19 @@ class DynamicNN(nn.Module):
                             unit_conf.params)
             unit['input'] = unit_conf.input
             self._units.append(unit)
-
+            self.add_module(unit['name'], unit['module'])
         self._output_key = nn_cfg.output
         if self._output_key not in output_size_dict:
             raise ValueError(f"Output key {self._output_key} not found")
+
+        # init modules
+        for module in self.modules():
+            if isinstance(module, nn.LSTM):
+                nn.init.xavier_normal_(module.weight_ih_l0)
+                nn.init.orthogonal_(module.weight_hh_l0)
+            elif isinstance(module, nn.Linear):
+                nn.init.xavier_normal_(module.weight.data)
+                nn.init.uniform_(module.bias.data)
 
     def forward(self, x_dict):
         for unit in self._units:
@@ -160,8 +172,14 @@ class DynamicNN(nn.Module):
             else:
                 x = x_dict[unit['input'][0]]
 
+            is_lstm = isinstance(unit['module'], nn.LSTM)
+
+            if is_lstm:
+                unit['module'].flatten_parameters()
+
             x = unit['module'](x)
-            if isinstance(unit['module'], nn.LSTM):
+            if is_lstm:
+                unit['module'].flatten_parameters()
                 x = x[0][:, 0, :]
 
             x_dict[unit['name']] = x

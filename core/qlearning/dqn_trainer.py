@@ -2,6 +2,7 @@ import copy
 from dataclasses import dataclass
 from typing import Tuple, Callable
 
+import numpy as np
 import torch
 from torch import Tensor, nn
 from torch.optim import Optimizer
@@ -51,6 +52,12 @@ class DQNTrainer:
     """
 
     @dataclass
+    class ExperienceTuple:
+        experience: Experience
+        weight: float
+        meta: object
+
+    @dataclass
     class Config:
         @dataclass
         class Optimizer:
@@ -66,10 +73,6 @@ class DQNTrainer:
             experience_cnt: int
 
         @dataclass
-        class Exploration:
-            sigma: float
-
-        @dataclass
         class QLearning:
             discount_factor: float
             update_target_network_after: int
@@ -78,7 +81,6 @@ class DQNTrainer:
         optimizer: Optimizer
         iterations: Iterations
         qlearning: QLearning
-        exploration: Exploration
 
         @staticmethod
         def from_dict(config_dict: dict):
@@ -94,7 +96,6 @@ class DQNTrainer:
                 config_dict['qlearning'],
                 ['discount_factor', 'update_target_network_after',
                  'replay_buffer_size'])
-            assert_fields_in_dict(config_dict['exploration'], ['sigma'])
 
             return DQNTrainer.Config(
                 DQNTrainer.Config.Optimizer(
@@ -112,9 +113,6 @@ class DQNTrainer:
                     config_dict['qlearning']['discount_factor'],
                     config_dict['qlearning']['update_target_network_after'],
                     config_dict['qlearning']['replay_buffer_size']
-                ),
-                DQNTrainer.Config.Exploration(
-                    config_dict['exploration']['sigma']
                 ))
 
     @staticmethod
@@ -125,7 +123,7 @@ class DQNTrainer:
         optimizer = torch.optim.Adam(dqn.parameters(),
                                      lr=config.optimizer.learning_rate,
                                      weight_decay=config.optimizer.weight_decay)
-        replay_buffer = ReplayBuffer(config.qlearning.replay_buffer_size)
+        replay_buffer = ReplayBuffer(config.qlearning.replay_buffer_size, True)
         return DQNTrainer(dqn, replay_buffer, optimizer,
                           config.qlearning.update_target_network_after,
                           config.qlearning.discount_factor)
@@ -151,8 +149,9 @@ class DQNTrainer:
     def perform_exploration(
             self,
             cnt: int,
-            experience_provider: Callable[[], Tuple[Experience, float]]) \
-            -> None:
+            experience_provider: Callable[[], ExperienceTuple]) \
+            -> int:
+
         """
         Collects experience tuples into the replay buffer by iteratively
         sampling from experience_provider. Stops after explorations_per_episode
@@ -160,12 +159,18 @@ class DQNTrainer:
         :param cnt: number of experiences to be sampled
         :param experience_provider: produces (Experience, weight) tuple.
         """
-        for _ in range(cnt):
-            experience, weight = experience_provider()
-            if experience is not None:
-                self._replay_buffer.add_experience(experience, weight)
-            else:
-                break
+        experience_cnt = 0
+        with torch.no_grad():
+            self._dqn.train(False)
+            for i in range(cnt):
+                exp = experience_provider()
+                if exp is not None:
+                    self._replay_buffer.add_experience(exp.experience,
+                                                       exp.weight)
+                    experience_cnt += 1
+                else:
+                    break
+        return experience_cnt
 
     def perform_training(self,
                          batch_size, batch_cnt, cuda) -> Tensor:
@@ -175,21 +180,31 @@ class DQNTrainer:
         produced by target net and updating target net after
         cnt_till_target_update training samples.
         """
-        experiences = self._replay_buffer.sample_experiences(
-            (batch_cnt, batch_size),
-            replace=True
-        )
-        prev_states = experiences['prev_state']
-        rewards = Tensor(experiences['reward'])
-        actions = experiences['action']
-        next_states = experiences['next_state']
 
+        experiences = [self._replay_buffer.sample_experiences(
+            batch_size,
+            replace=True
+        ) for _ in range(batch_cnt)]
+
+        prev_states = [{k: Tensor(e['prev_state'][k]) for k in e['prev_state']}
+                       for e in experiences]
+        rewards = Tensor(np.concatenate([e['reward'] for e in experiences]))
+        actions = [e['action'] for e in experiences]
+        next_states = [{k: Tensor(e['next_state'][k]) for k in e['next_state']}
+                       for e in experiences]
         if cuda:
             rewards = rewards.cuda()
-
+            for e in prev_states:
+                for k in e:
+                    e[k] = e[k].cuda()
+            for e in next_states:
+                for k in e:
+                    e[k] = e[k].cuda()
         loss_sum = 0
 
+        self._dqn.train(True)
         self._dqn.requires_grad_(True)
+        torch.set_grad_enabled(True)
 
         for batch_ix in range(batch_cnt):
             self._optimizer.zero_grad()
@@ -207,10 +222,10 @@ class DQNTrainer:
             loss.backward()
             self._optimizer.step()
 
-            if self._cnt_till_target_update <= 0:
-                self._cnt_till_target_update = self._target_update_after
-                self._target_dqn.load_state_dict(self._dqn.state_dict())
-            self._cnt_till_target_update -= batch_size
+        self._cnt_till_target_update -= 1
+        if self._cnt_till_target_update <= 0:
+            self._cnt_till_target_update = self._target_update_after
+            self._target_dqn.load_state_dict(self._dqn.state_dict())
 
         return loss / batch_cnt
 

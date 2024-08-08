@@ -1,7 +1,14 @@
 from typing import Dict
 
+from core.data.assets.asset_manager import AssetManager
+from core.data.assets.asset_provider import AssetProvider
+from core.data.assets.asset_source import AssetSource
 from core.data.data_provider \
     import ChunkProvider, ChunkType, ContinuousProvider, DataProvider, Sample
+from core.data.normalizer import Normalizer
+from core.data.technical_indicators.collection import IndicatorCollection
+from core.nn.dynamic_nn import DynamicNN
+from core.simulation.state_manager import StateManager, StateProvider
 
 
 class SampleProvider:
@@ -12,6 +19,43 @@ class SampleProvider:
         data_providers (Dict[str, DataProvider]): A dictionary of data
                                                   providers.
     """
+
+    @staticmethod
+    def from_config(normalizer: Normalizer,
+                    asset_manager: AssetManager,
+                    state_manager: StateManager,
+                    config: DynamicNN.Config.Input):
+
+        providers = {}
+
+        asset_srcs = []
+
+        for input in config.data:
+            if input.type == 'asset':
+                input_cfg: AssetManager.Config.Provider = input.config
+                df = asset_manager.get_asset_df(input_cfg.asset)
+                asset_srcs.append((AssetSource(df,
+                                               normalizer,
+                                               input_cfg.normalizer),
+                                   input))
+            if input.type == 'state':
+                providers[input.key] = StateProvider(state_manager,
+                                                     normalizer,
+                                                     input.config)
+
+        def get_columns(cfg: AssetManager.Config.Provider) -> list[str]:
+            return cfg.include \
+                  + [IndicatorCollection.get_from_cfg(i).get_unique_id()
+                     for i in cfg.indicators]
+
+        for src, data_cfg in asset_srcs:
+            providers[data_cfg.key] = AssetProvider(
+                src,
+                data_cfg.config.include,
+                get_columns(data_cfg.config),
+                config.input_window)
+
+        return SampleProvider(providers)
 
     def __init__(self, data_providers: Dict[str, DataProvider]) -> None:
 
@@ -46,6 +90,9 @@ class SampleProvider:
         self._episode_iterators = None  # iterates data chunks
         self._sample_reader = None  # iterates samples within a chunk
 
+    def get_sample_cnt(self, type: ChunkType) -> int:
+        return self._chunk_providers[self._peek_key].get_sample_cnt(type)
+
     def reset(self, type: ChunkType) -> None:
         """
         Reset the sample provider for a new session.
@@ -69,7 +116,7 @@ class SampleProvider:
 
         self._next_episode()
 
-    def get_next_samples(self) -> Dict[str, Sample]:
+    def advance(self) -> Dict[str, Sample]:
         """
         Get the next samples from the sample provider.
 
@@ -91,9 +138,9 @@ class SampleProvider:
         except StopIteration:
             if not self._next_episode():
                 raise StopIteration("No more episodes.")
-            return self.get_next_samples()
+            return self.advance()
 
-    def update_values(self, samples: Dict[str, Sample]):
+    def get_context_samples(self, context: dict) -> Dict[str, Sample]:
         """
         Update the values of the data providers.
 
@@ -104,14 +151,10 @@ class SampleProvider:
             None
 
         """
-        if self._sample_reader is None:
-            raise RuntimeError("No active session.")
-
-        updated_values = {
-            k: self._cont_providers[k].update_sample(samples[k])
+        return {
+            k: self._cont_providers[k].provide_sample(context)
             for k in self._cont_providers.keys()
         }
-        samples.update(updated_values)
 
     def current_episode_complete(self) -> bool:
         """

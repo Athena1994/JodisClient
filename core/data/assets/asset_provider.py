@@ -73,12 +73,18 @@ class AssetProvider(ChunkProvider):
     def get_chunk_cnt(self, chunk_type: ChunkType) -> int:
         return len(self._chunk_ids[chunk_type])
 
+    def get_sample_cnt(self, chunk_type: ChunkType) -> int:
+        cnt = 0
+        for id in self._chunk_ids[chunk_type]:
+            cnt += self._chunk_ranges[id].length-self._window_size+1
+        return cnt
+
     def get_chunk_signature(self) -> str:
         res = {}
         for type in ChunkType:
-            res[type] = []
+            res[str(type)] = []
             for id in self._chunk_ids[type]:
-                res[type].append(self._chunk_ranges[id].length)
+                res[str(type)].append(self._chunk_ranges[id].length)
         return json.dumps(res)
 
 

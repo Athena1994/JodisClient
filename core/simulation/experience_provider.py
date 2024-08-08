@@ -1,19 +1,18 @@
-
-
-from typing import Tuple
+import logging
 from core.data.data_provider import ChunkType
-from core.qlearning.q_arbiter import Arbiter
-from core.qlearning.replay_buffer import Experience
+from core.qlearning.dqn_trainer import DQNTrainer
+from core.qlearning.q_arbiter import ExplorationArbiter
 from core.simulation.sample_provider import SampleProvider
-from core.simulation.simulation_environment import SimulationEnvironment, State
+from core.simulation.simulation_environment import SimulationEnvironment
 from core.simulation.state_manager import StateManager
+from core.simulation.utils import perform_transition
 
 
 class ExperienceProvider:
     def __init__(self,
                  state_manager: StateManager,
                  sample_provider: SampleProvider,
-                 agent: Arbiter,
+                 agent: ExplorationArbiter,
                  simulation: SimulationEnvironment) -> None:
 
         self._state_manager = state_manager
@@ -25,9 +24,12 @@ class ExperienceProvider:
 
         self._mode = None
 
+    def get_experience_cnt(self, type: ChunkType) -> int:
+        return self._sample_provider.get_sample_cnt(type)
+
     def start(self, type: ChunkType):
         if self._running:
-            raise Exception("Experience provider already running")
+            logging.warn("restart running experience provider")
 
         self._mode = type
 
@@ -39,7 +41,8 @@ class ExperienceProvider:
 
         self._running = True
 
-    def provide_experience(self) -> Tuple[Experience, float]:
+    def provide_experience(self) -> DQNTrainer.ExperienceTuple:
+
         if not self._running:
             raise Exception("Experience provider not running")
 
@@ -52,50 +55,35 @@ class ExperienceProvider:
 
         current_state = self._state_manager.get_state()
 
-        action = self._agent.decide(current_state,
-                                    self._mode == ChunkType.TRAINING)
-        next_state = self._advance_state(
-            self._simulation.perform_transition(
-                self._state_manager.get_samples(),
-                self._state_manager.get_context(),
-                action,
-                self._mode
-            )
-        )
-        reward = self._simulation.calculate_reward(current_state,
-                                                   next_state,
-                                                   action, self._mode)
+        result = perform_transition(
+            self._agent,
+            self._simulation,
+            self._sample_provider,
+            current_state,
+            self._mode,
+            True)
 
-        self._update_state(
-            self._simulation.on_action(self._state_manager.get_context(),
-                                       action,
-                                       self._mode)
-        )
+        self._advance_state(
+            self._simulation.on_transition(result, self._mode))
 
-        exp = Experience(
-            old_state=current_state,
-            action=action,
-            reward=reward,
-            new_state=next_state)
+        return DQNTrainer.ExperienceTuple(result.as_experience(), 1, result)
 
-        return exp, 1
+    def has_next(self) -> bool:
+        return self._running
 
-    def _update_state(self, context: dict):
-        self._state_manager.update_context(context)
-        samples = self._state_manager.get_samples()
-        self._sample_provider.update_values(samples)
-        self._state_manager.update_samples(samples)
-
-    def _advance_state(self, context: dict) -> State:
+    def _advance_state(self, context: dict):
         self._state_manager.reset_state(context)
-        samples = self._sample_provider.get_next_samples()
-        self._state_manager.update_samples(samples)
+
+        samples = self._sample_provider.advance()
         context = self._simulation.on_new_samples(samples, context, self._mode)
-        self._update_state(context)
-        return self._state_manager.get_state()
+        samples.update(self._sample_provider.get_context_samples(context))
+
+        self._state_manager.update_samples(samples)
+        self._state_manager.update_context(context)
 
     def _start_next_episode(self):
         self._advance_state(
             self._simulation.on_episode_start(
-                self._state_manager.get_context(), self._mode)
+                self._state_manager.get_context(),
+                self._mode)
         )

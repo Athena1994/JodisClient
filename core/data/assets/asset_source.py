@@ -41,6 +41,6 @@ class AssetSource:
             res[req.key] = self._df[req.columns].copy()
             if req.normalize:
                 res[req.key] \
-                    = self._normalizer.normalize_df(res[req.key],
+                    = self._normalizer.normalize_data(res[req.key],
                                                     self._normalizer_conf)
         return res

@@ -1,19 +1,9 @@
 
 from abc import abstractmethod
-from dataclasses import dataclass
-from typing import Dict, Self
+from typing import Dict
 from core.data.data_provider import ChunkType
-from core.simulation.sample_provider import Sample
-
-
-@dataclass
-class State:
-    samples: Dict[str, Sample]
-    context: dict
-
-    def copy(self) -> Self:
-        return State(self.samples.copy(),
-                     self.context.copy())
+from core.simulation.data_classes import State, TransitionResult
+import core.simulation.sample_provider as sp
 
 
 class SimulationEnvironment:
@@ -30,24 +20,23 @@ class SimulationEnvironment:
 
     @abstractmethod
     def on_new_samples(self,
-                       samples: Dict[str, Sample],
+                       samples: Dict[str, sp.Sample],
                        context: dict,
                        mode: ChunkType) -> dict:
         pass
 
     @abstractmethod
     def perform_transition(self,
-                           samples: Dict[str, Sample],
+                           samples: Dict[str, sp.Sample],
                            context: dict,
                            action: int,
                            mode: ChunkType) -> dict:
         pass
 
     @abstractmethod
-    def on_action(self,
-                  context: dict,
-                  action: int,
-                  mode: ChunkType) -> dict:
+    def on_transition(self,
+                      transition_result: TransitionResult,
+                      mode: ChunkType) -> dict:
         pass
 
     @abstractmethod

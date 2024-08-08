@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 from enum import Enum
 from typing import Self
@@ -140,6 +139,11 @@ class Normalizer:
             if not isinstance(arr, np.ndarray):
                 arr = np.array(arr)
 
+            if not np.issubdtype(arr.dtype, np.number):
+                return None
+
+            arr = arr[~np.isnan(arr)]
+
             return Normalizer.Stats(
                 min=arr.min(),
                 max=arr.max(),
@@ -191,7 +195,7 @@ class Normalizer:
 
         self._stats[cfg.df_key] = stats
 
-    def normalize_df(self, df: pd.DataFrame, cfg: Config) -> pd.DataFrame:
+    def normalize_data(self, data: dict, cfg: Config) -> pd.DataFrame:
         """
         Normalize the specified DataFrame using the configured normalization
         strategies.
@@ -213,7 +217,7 @@ class Normalizer:
             ValueError: If the normalization strategy is not supported.
         """
 
-        normalized_df = df.copy()
+        normalized_df = data.copy()
 
         if cfg.df_key is not None and cfg.df_key not in self._stats:
             raise ValueError(f"Stats for key {cfg.df_key} not found")
@@ -225,7 +229,7 @@ class Normalizer:
 
         extra_dict = {e.column: e for e in cfg.extra}
 
-        for col in df.columns:
+        for col in data.keys():
             df_key = cfg.df_key
             col_key = col
             strategy = cfg.default_strategy
@@ -241,8 +245,13 @@ class Normalizer:
                     and df_key is None:
                 raise ValueError(f"Strategy {strategy} requires a stats key")
 
+            if isinstance(data, pd.DataFrame):
+                d = data[col].values
+            else:
+                d = data[col]
+
             normalized_df[col] = self._normalize(
-                data=df[col].values,
+                data=d,
                 key=df_key,
                 col=col_key,
                 strategy=strategy.type,

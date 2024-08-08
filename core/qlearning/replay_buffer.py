@@ -12,11 +12,18 @@ class Experience(NamedTuple):
 
 class ReplayBuffer:
 
-    def __init__(self, size: int):
+    def __init__(self, size: int, input_tensor_dict: bool):
         self._reward_buffer = np.array([.0] * size)
         self._action_buffer = np.array([-1] * size)
-        self._prev_state_buffer = np.array([None]*size)
-        self._next_state_buffer = np.array([None]*size)
+
+        self._use_dict_state = input_tensor_dict
+
+        if not self._use_dict_state:
+            self._prev_state_buffer = np.array([None]*size)
+            self._next_state_buffer = np.array([None]*size)
+        else:
+            self._prev_state_buffer = None
+            self._next_state_buffer = None
 
         self._next_ix = 0
         self._cnt = 0
@@ -47,22 +54,46 @@ class ReplayBuffer:
             raise Exception("parameter must be of type Experience")
         if weight <= 0:
             raise Exception(f'Experience weight must not be <= 0 ({weight})')
+
+        if self._capacity == self._cnt:
+            self._next_ix = np.random.randint(0, self._cnt)
+
         # keep track of cumulated weights for sample probability
         self._weight_sum += weight - self._weights[self._next_ix]
         self._weights[self._next_ix] = weight
 
         # overwrite buffer entry
-        self._prev_state_buffer[self._next_ix] = experience.old_state
+        if self._use_dict_state:
+            if self._prev_state_buffer is None:
+                shapes = {k: experience.old_state[k].shape
+                          for k in experience.old_state}
+                for k in shapes:
+                    if shapes[k][0] == 1:
+                        shapes[k] = shapes[k][1:]
+                shapes = {k: (self._capacity, *shapes[k])
+                          for k in shapes}
+
+                self._prev_state_buffer \
+                    = {k: np.zeros(shapes[k]) for k in shapes}
+                self._next_state_buffer \
+                    = {k: np.zeros(shapes[k]) for k in shapes}
+
+            for k in experience.old_state:
+                self._prev_state_buffer[k][self._next_ix, ...] \
+                    = experience.old_state[k]
+                self._next_state_buffer[k][self._next_ix, ...] \
+                    = experience.new_state[k]
+        else:
+            self._prev_state_buffer[self._next_ix] = experience.old_state
+            self._next_state_buffer[self._next_ix] = experience.new_state
+
         self._action_buffer[self._next_ix] = experience.action
         self._reward_buffer[self._next_ix] = experience.reward
-        self._next_state_buffer[self._next_ix] = experience.new_state
-        # cycle buffer pointer
-        self._next_ix += 1
-        if self._next_ix == self._capacity:
-            self._next_ix = 0
 
+        # cycle buffer pointer
         if self._cnt != self._capacity:
             self._cnt += 1
+            self._next_ix += 1
 
     def sample_experiences(self, size: int | Tuple, replace: bool) -> dir:
         # maybe include priority selection for buy/sell experiences?
@@ -78,9 +109,20 @@ class ReplayBuffer:
                                    size,
                                    replace=replace,
                                    p=self._weights / self._weight_sum)
-        return {
-            'prev_state': self._prev_state_buffer[choices],
-            'action': self._action_buffer[choices],
-            'reward': self._reward_buffer[choices],
-            'next_state': self._next_state_buffer[choices],
-        }
+
+        if self._use_dict_state:
+            return {
+                'prev_state': {k: self._prev_state_buffer[k][choices]
+                               for k in self._prev_state_buffer},
+                'action': self._action_buffer[choices],
+                'reward': self._reward_buffer[choices],
+                'next_state': {k: self._next_state_buffer[k][choices]
+                               for k in self._next_state_buffer},
+            }
+        else:
+            return {
+                'prev_state': self._prev_state_buffer[choices],
+                'action': self._action_buffer[choices],
+                'reward': self._reward_buffer[choices],
+                'next_state': self._next_state_buffer[choices],
+            }

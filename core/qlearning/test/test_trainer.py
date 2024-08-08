@@ -9,7 +9,8 @@ import numpy as np
 from torch import Tensor, nn
 import torch
 
-from core.qlearning.q_arbiter import DQNWrapper, DeepQFunction, QSigArbiter
+from core.nn.dynamic_nn import DynamicNN
+from core.qlearning.q_arbiter import DQNWrapper, DeepQFunction, EpsilonGreedyArbiter
 from core.qlearning.replay_buffer import Experience, ReplayBuffer
 from core.qlearning.dqn_trainer \
     import DQNTrainer, calculate_target_q
@@ -17,7 +18,7 @@ from core.qlearning.dqn_trainer \
 
 class DummyReplayBuffer(ReplayBuffer):
     def __init__(self, size):
-        super().__init__(size)
+        super().__init__(size, False)
 
     def sample_experiences(self, size: int | Tuple, replace: bool) -> dir:
 
@@ -73,6 +74,105 @@ class TestTrainer(unittest.TestCase):
         trainer = DQNTrainer.from_config(dummy_nn, cfg)
         self.assertIsNotNone(trainer)
 
+    def test_dict_states(self):
+
+        def provide_experience():
+            return DQNTrainer.ExperienceTuple(Experience(
+                {
+                    'a': Tensor(np.random.random((input_cfg.input_window, 2))),
+                    'b': Tensor(np.random.random((input_cfg.input_window, 3)))
+                },
+                0, 0,
+                {
+                    'a': Tensor(np.random.random((input_cfg.input_window, 2))),
+                    'b': Tensor(np.random.random((input_cfg.input_window, 3)))
+                }), 1, None)
+
+        input_cfg = DynamicNN.Config.Input.from_dict({
+            "input_window": 5,
+            "data": [{
+                "key": "a",
+                "type": "asset",
+                "params": {
+                    "asset": {
+                        "name": "foo",
+                        "source": "bar",
+                        "interval": "foobar"
+                    },
+                    "include": ["v1", "v2"],
+                    "indicators": [],
+                    "normalizer": {}
+                }
+            }, {
+                "key": "b",
+                "type": "asset",
+                "params": {
+                    "asset": {
+                        "name": "foo",
+                        "source": "bar",
+                        "interval": "foobar"
+                    },
+                    "include": ["v1", "v2", "v3"],
+                    "indicators": [],
+                    "normalizer": {}
+                }
+            }]
+        })
+
+        nn_cfg = DynamicNN.Config.from_dict({
+            'units': [{
+                'name': 'in',
+                "input": 'a',
+                'type': 'LSTM',
+                'params': {
+                    'num_layers': 1,
+                    'hidden_size': 5
+                }
+            }, {
+                'name': 'in2',
+                "input": 'b',
+                'type': 'Sequence',
+                'params': [
+                    {'type': 'Linear', 'size': 10}
+                ]
+            }, {
+                'name': 'out',
+                'input': 'in',
+                'type': 'Sequence',
+                'params': [
+                    {'type': 'Linear', 'size': 3}
+                ]
+            }
+            ],
+            'output': 'out'
+        })
+        nn = DynamicNN(nn_cfg, input_cfg).cuda()
+
+        trainer_cfg = DQNTrainer.Config(
+            DQNTrainer.Config.Optimizer('adam', 0.001, 0.0001),
+            DQNTrainer.Config.Iterations(
+                max_epoch_cnt=5,
+                batch_cnt=2,
+                batch_size=3,
+                experience_cnt=4),
+            DQNTrainer.Config.QLearning(0.99, 10, 7),
+            DQNTrainer.Config.Exploration(0.1)
+        )
+
+        trainer = DQNTrainer.from_config(nn, trainer_cfg)
+
+        trainer.perform_exploration(cnt=trainer_cfg.iterations.experience_cnt,
+                                    experience_provider=provide_experience)
+
+        exp_batch = trainer.get_replay_buffer().sample_experiences(16, True)
+        self.assertTrue('a' in exp_batch['prev_state']
+                        and 'b' in exp_batch['prev_state'])
+        self.assertEqual(exp_batch['prev_state']['a'].shape, (16, 5, 2))
+        self.assertEqual(exp_batch['prev_state']['b'].shape, (16, 5, 3))
+
+        trainer.perform_training(batch_size=trainer_cfg.iterations.batch_size,
+                                 batch_cnt=trainer_cfg.iterations.batch_cnt,
+                                 cuda=True)
 
 
     # def test_training_step(self):
@@ -148,7 +248,7 @@ class TestTrainer(unittest.TestCase):
         replay_buffer_size = 256
         explore_episode_len = 64
 
-        replay_buffer = ReplayBuffer(replay_buffer_size)
+        replay_buffer = ReplayBuffer(replay_buffer_size, False)
         dqn = nn.Linear(8, 32)
         trainer = DQNTrainer(dqn,
                              replay_buffer,
@@ -156,7 +256,7 @@ class TestTrainer(unittest.TestCase):
                              update_target_network_after=0,
                              discount_factor=0.9)
 
-        test_replay_buffer = ReplayBuffer(replay_buffer_size)
+        test_replay_buffer = ReplayBuffer(replay_buffer_size, False)
 
         # returns random sample and asserts trainer replay buffer
         def experience_provider():
@@ -171,7 +271,7 @@ class TestTrainer(unittest.TestCase):
             experience = Experience((np.random.random(8), np.random.random(32)),
                                     0, 0, None)
             test_replay_buffer.add_experience(experience, 1)
-            return experience, 1
+            return DQNTrainer.ExperienceTuple(experience, 1, None)
         trainer.perform_exploration(explore_episode_len,
                                     experience_provider)
 
@@ -449,8 +549,8 @@ class TestTrainer(unittest.TestCase):
                 torch.nn.init.xavier_uniform(p.weight)
                 torch.nn.init.xavier_uniform(p.bias)
 
-        arbiter = QSigArbiter(DeepQFunction(dqn), 0.3)
-        replay_buffer = ReplayBuffer(4096)
+        arbiter = EpsilonGreedyArbiter(DeepQFunction(dqn), 0.3)
+        replay_buffer = ReplayBuffer(4096, False)
         optimizer = torch.optim.Adam(dqn.parameters(), lr=learning_rate,
                                      weight_decay=0.0001)
 

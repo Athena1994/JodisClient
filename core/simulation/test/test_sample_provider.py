@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from core.data.data_provider import ChunkType, Sample
 from core.simulation.sample_provider import SampleProvider
-from core.simulation.test.mockup import DummyChunkProvider, DummyContProvider
+from mock.mockup import MockChunkProvider, DummyContProvider
 
 
 class TestSampleProvider(TestCase):
@@ -17,8 +17,8 @@ class TestSampleProvider(TestCase):
 
         cont1 = DummyContProvider(self)
         cont2 = DummyContProvider(self)
-        chunk1 = DummyChunkProvider(self)
-        chunk2 = DummyChunkProvider(self)
+        chunk1 = MockChunkProvider(self)
+        chunk2 = MockChunkProvider(self)
 
         # assert differing signatures are not accepted
         chunk1.chunk_signature = "sig1"
@@ -44,7 +44,7 @@ class TestSampleProvider(TestCase):
 
         # assert exception on invalid state
         try:
-            sp.get_next_samples()
+            sp.advance()
             self.fail("Expected RuntimeError")
         except RuntimeError:
             pass
@@ -96,7 +96,7 @@ class TestSampleProvider(TestCase):
         chunk1.next_sample = Sample(None, out_chunk1)
         chunk2.next_sample = Sample(None, out_chunk2)
 
-        self.assertDictEqual(sp.get_next_samples(), {
+        self.assertDictEqual(sp.advance(), {
             "cont1": cont1.next_sample,
             "cont2": cont2.next_sample,
             "chunk1": chunk1.next_sample,
@@ -107,7 +107,7 @@ class TestSampleProvider(TestCase):
         out_cont2['b'] += 1
         out_chunk1['c'] += 1
         out_chunk2['d'] += 1
-        s = sp.get_next_samples()
+        s = sp.advance()
         self.assertEqual(s['cont1'].context['a'], 2)
         self.assertEqual(s['cont2'].context['b'], 3)
         self.assertEqual(s['chunk1'].context['c'], 4)
@@ -121,7 +121,7 @@ class TestSampleProvider(TestCase):
         cont1._expected_update_sample = s["cont1"]
         cont2._expected_update_sample = s["cont2"]
 
-        sp.update_values(s)
+        #sp.get_context_samples(s)update_values(s)
         self.assertEqual(s['cont1'].context['a'], 3)
         self.assertEqual(s['cont2'].context['b'], 4)
         self.assertEqual(s['chunk1'].context['c'], 4)
@@ -132,7 +132,7 @@ class TestSampleProvider(TestCase):
         chunk2.assert_no_chunk_change()
 
         chunk1.reader_exhausted = True
-        self.assertIsNotNone(sp.get_next_samples())
+        self.assertIsNotNone(sp.advance())
         self.assertFalse(chunk1.reader_exhausted)
         chunk1.assert_chunk_change()
         chunk2.assert_chunk_change()
@@ -140,7 +140,7 @@ class TestSampleProvider(TestCase):
         chunk1.last_chunk_reached = True
         chunk1.reader_exhausted = True
         try:
-            sp.get_next_samples()
+            sp.advance()
             self.fail("Expected StopIteration")
         except StopIteration:
             pass

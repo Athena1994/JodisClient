@@ -27,7 +27,7 @@ class MockNormalizer:
     def set_expected_cols(self, cols: list[str]) -> None:
         self.expected_cols = cols
 
-    def normalize_df(self, df: pd.DataFrame, conf: Normalizer.Config)\
+    def normalize_data(self, df: pd.DataFrame, conf: Normalizer.Config)\
             -> pd.DataFrame:
         if self.off:
             return df

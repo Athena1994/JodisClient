@@ -2,39 +2,15 @@ import numpy as np
 import unittest
 
 from torch import Tensor
+import torch
 
 from core.data.data_provider import ChunkType, Sample
-from core.qlearning.q_arbiter import Arbiter
 
 from core.simulation.experience_provider import ExperienceProvider
 from core.simulation.sample_provider import SampleProvider
 from core.simulation.simulation_environment import SimulationEnvironment, State
 from core.simulation.state_manager import StateManager
-from core.simulation.test.mockup import DummyChunkProvider, DummyContProvider
-
-
-class DummyAgent(Arbiter):
-    def __init__(self, testcase: unittest.TestCase) -> None:
-        self._next_action = 0
-        self._test_case = testcase
-        self._expect_explore = False
-
-        self._expect_call = False
-        self._was_called = False
-
-    def assert_called(self):
-        self._test_case.assertTrue(self._was_called)
-        self._was_called = False
-
-    def set_next(self, action: int):
-        self._next_action = action
-
-    def decide(self, state: object, explore: bool) -> np.array:
-        if not self._expect_call:
-            self._test_case.fail("Unexpected call")
-        self._test_case.assertEqual(explore, self._expect_explore)
-
-        return np.array([self._next_action])
+from mock.mockup import MockChunkProvider, DummyContProvider
 
 
 class DummyEnvironment(SimulationEnvironment):
@@ -88,7 +64,7 @@ class DummyEnvironment(SimulationEnvironment):
 
         return self.next_reward
 
-    def on_action(self, context, action, mode):
+    def on_transition(self, context, action, mode):
         self._test_case.assertDictEqual(self.expected_new_state.context,
                                         context)
         self._test_case.assertEqual(self.expected_action, action)
@@ -174,16 +150,20 @@ class TestExperienceProvider(unittest.TestCase):
 
         # --- prepare agent and data providers
 
-        agent = DummyAgent(self)
+        agent = MockAgent(self, {'cont': (1, 3, 4), 'chunk': (1, 5)})
         agent.set_next(1)
 
         cont = DummyContProvider(self)
-        cont_samples = [Sample(None, {'co': i}) for i in range(10)]
+        cont_samples = [Sample(Tensor(np.random.rand(3, 4)),
+                               {'co': i}) for i in range(10)]
         cont.next_sample = cont_samples
+        cont_output_states = [s.tensor[None, ...] for s in cont_samples]
 
-        chunk = DummyChunkProvider(self)
-        chunk_samples = [Sample(None, {'ch': i}) for i in range(10)]
+        chunk = MockChunkProvider(self)
+        chunk_samples = [Sample(Tensor(np.random.rand(5)),
+                                {'ch': i}) for i in range(10)]
         chunk.next_sample = chunk_samples
+        chunk_output_states = [s.tensor[None, ...] for s in chunk_samples]
 
         sp = SampleProvider({
             'cont': cont,
@@ -219,6 +199,7 @@ class TestExperienceProvider(unittest.TestCase):
             State({'cont': cont_samples[1], 'chunk': chunk_samples[0]},
                   {'a': AVals.NEW_SAMPLE, 'fetch_cnt': 1}),
         ]
+
         ep.start(ChunkType.VALIDATION)
         self.assertTrue(ep._running)
         self.assertEqual(cont.last_iter_type, ChunkType.VALIDATION)
@@ -253,13 +234,22 @@ class TestExperienceProvider(unittest.TestCase):
         sim.expected_new_state = expected_states[3]
         states.clear()
 
-        exp, w = ep.provide_experience()
+        e = ep.provide_experience()
+        exp = e.experience
+        w = e.weight
 
         self.assertEqual(w, 1)
         self.assertEqual(exp.action, 1)
         self.assertEqual(exp.reward, 0.5)
-        self.assertEqual(exp.old_state, sim.expected_old_state)
-        self.assertEqual(exp.new_state, sim.expected_new_state)
+
+        self.assertTrue(torch.equal(exp.old_state['cont'],
+                                    cont_output_states[1]))
+        self.assertTrue(torch.equal(exp.old_state['chunk'],
+                                    chunk_output_states[0]))
+        self.assertTrue(torch.equal(exp.new_state['cont'],
+                                    cont_output_states[3]))
+        self.assertTrue(torch.equal(exp.new_state['chunk'],
+                                    chunk_output_states[1]))
         self.assertListEqual(states, expected_states)
 
         # test episode end

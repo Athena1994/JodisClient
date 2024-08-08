@@ -10,7 +10,7 @@ from core.data.normalizer import Normalizer
 class TestNormalizer(unittest.TestCase):
 
     def test_stats(self):
-        data = [1, 2, 3, 4, 5]
+        data = np.array([1, 2, 3, 4, 5])
         stats = Normalizer.Stats.from_array(data)
         self.assertEqual(stats.mean, 3)
         d = np.array(data)
@@ -42,14 +42,14 @@ class TestNormalizer(unittest.TestCase):
         normalizer = Normalizer()
 
         cfg = Normalizer.Config.from_dict({})
-        normalizer.normalize_df(df_b, cfg)
+        normalizer.normalize_data(df_b, cfg)
         cfg = Normalizer.Config.from_dict({'default_strategy': None})
-        normalizer.normalize_df(df_b, cfg)
+        normalizer.normalize_data(df_b, cfg)
 
         cfg = Normalizer.Config.from_dict({'default_strategy': {
                                                 "type": 'zscore'}})
         try:
-            normalizer.normalize_df(df_b, cfg)
+            normalizer.normalize_data(df_b, cfg)
             self.fail("Should have raised an exception")
         except ValueError:
             pass
@@ -58,7 +58,7 @@ class TestNormalizer(unittest.TestCase):
                                                 'type': 'zscore'},
                                            'df_key': 'foo'})
         try:
-            normalizer.normalize_df(df_b, cfg)
+            normalizer.normalize_data(df_b, cfg)
             self.fail("Should have raised an exception")
         except ValueError:
             pass
@@ -77,7 +77,7 @@ class TestNormalizer(unittest.TestCase):
         self.assertEqual(normalizer._stats['foo']['d'].std,
                          stats_b['d'].std)
 
-        df_norm = normalizer.normalize_df(df_b, cfg)
+        df_norm = normalizer.normalize_data(df_b, cfg)
 
         ca = np.array(df_b['c'])
         ca = (ca - ca.mean())/ca.std()
@@ -160,7 +160,7 @@ class TestNormalizer(unittest.TestCase):
             ],
         }
         cfg = Normalizer.Config.from_dict(mock_conf)
-        df_norm = normalizer.normalize_df(df_b, cfg)
+        df_norm = normalizer.normalize_data(df_b, cfg)
         for col in df_b.columns:
             for i in range(5):
                 self.assertEqual(df_b[col][i], df_norm[col][i])
@@ -168,7 +168,7 @@ class TestNormalizer(unittest.TestCase):
         mock_conf['extra'][0]['strategy'] = {'type': 'zscore'}
         cfg = Normalizer.Config.from_dict(mock_conf)
         try:
-            df_norm = normalizer.normalize_df(df_b, cfg)
+            df_norm = normalizer.normalize_data(df_b, cfg)
             self.fail("Should have raised an exception")
         except ValueError:
             pass
@@ -176,21 +176,21 @@ class TestNormalizer(unittest.TestCase):
         mock_conf['df_key'] = 'bar'
         cfg = Normalizer.Config.from_dict(mock_conf)
         try:
-            df_norm = normalizer.normalize_df(df_b, cfg)
+            df_norm = normalizer.normalize_data(df_b, cfg)
             self.fail("Should have raised an exception")
         except Exception:
             pass
 
         mock_conf['df_key'] = 'foo'
         cfg = Normalizer.Config.from_dict(mock_conf)
-        df_norm = normalizer.normalize_df(df_b, cfg)
+        df_norm = normalizer.normalize_data(df_b, cfg)
 
         del mock_conf['df_key']
         mock_conf['extra'][0]['strategy'] = {'type': 'zscore'}
         mock_conf['extra'][0]['stats_df'] = 'foo'
 
         cfg = Normalizer.Config.from_dict(mock_conf)
-        df_norm = normalizer.normalize_df(df_b, cfg)
+        df_norm = normalizer.normalize_data(df_b, cfg)
         self.assertTrue('c' in df_norm.columns)
         self.assertTrue('d' in df_norm.columns)
         self.assertEqual(len(df_norm.columns), 2)
@@ -204,7 +204,7 @@ class TestNormalizer(unittest.TestCase):
 
         mock_conf['extra'][0]['stats_col'] = 'a'
         cfg = Normalizer.Config.from_dict(mock_conf)
-        df_norm = normalizer.normalize_df(df_b, cfg)
+        df_norm = normalizer.normalize_data(df_b, cfg)
 
         c_norm = np.arange(1, 6)
         t = np.arange(1, 11)
@@ -218,7 +218,7 @@ class TestNormalizer(unittest.TestCase):
 
         cfg = Normalizer.Config.from_dict(mock_conf)
         normalizer.prepare(df_b, cfg)
-        df_norm = normalizer.normalize_df(df_b, cfg)
+        df_norm = normalizer.normalize_data(df_b, cfg)
         c_norm = np.arange(1, 6)
         t = np.arange(1, 11)
         c_norm = (c_norm - t.mean())/t.std()
@@ -254,7 +254,7 @@ class TestNormalizer(unittest.TestCase):
         norm = Normalizer()
 
         cfg = Normalizer.Config.from_dict(mock_config)
-        ndf = norm.normalize_df(df, cfg)
+        ndf = norm.normalize_data(df, cfg)
 
         print(df)
         print(ndf)

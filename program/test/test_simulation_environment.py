@@ -1,14 +1,34 @@
 
 
 import copy
+from dataclasses import dataclass
+import datetime
+import json
 import unittest
 
 import numpy as np
+from torch import Tensor
+import pandas as pd
+import torch
 
-from core.data.data_provider import ChunkType
+from core.data.assets.asset_manager import AssetManager
+from core.data.data_provider import ChunkType, Sample
+from core.data.loader.ohcl_loader import OHCLLoader
+from core.data.normalizer import Normalizer
+from core.nn.dynamic_nn import DynamicNN
+from core.qlearning.dqn_trainer import DQNTrainer
+from core.qlearning.q_arbiter import DeepQFunction, EpsilonGreedyArbiter
+from core.simulation.experience_provider import ExperienceProvider
+from core.simulation.sample_provider import SampleProvider
 from core.simulation.simulation_environment import State
-from program.exchange_manager import ExchangeDirection, Exchanger
+from core.simulation.state_manager import StateManager, StateProvider
+from core.simulation.data_classes import TransitionResult
+from core.simulation.utils import perform_transition
+from mock.mockup import MockAgent, MockChunkProvider
+from program.exchange_manager \
+    import ExchangeDirection, Exchanger, StateSourcedExchanger
 from program.trading_environment import ActionType, TradingEnvironment
+from utils import benchmark
 
 
 class DummyExchanger(Exchanger):
@@ -106,157 +126,193 @@ class TestSimulationEnvironment(unittest.TestCase):
         # --- test on inital context -> no changes expected
 
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.BUY, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.TEST),
             init_context)
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.HOLD, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.TEST),
             init_context)
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.SELL, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.TEST),
             init_context)
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.BUY, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.VALIDATION),
             init_context)
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.HOLD, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.VALIDATION),
             init_context)
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.SELL, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.VALIDATION),
             init_context)
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.BUY, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.TRAINING),
             init_context)
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.HOLD, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.TRAINING),
             init_context)
         self.assertDictEqual(
-            te.on_action(init_context.copy(),
-                         ActionType.SELL, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, init_context.copy())),
+							 ChunkType.TRAINING),
             init_context)
 
         # --- test on invalid action
 
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.BUY, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.TEST),
             init_context)
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.HOLD, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.TEST),
             init_context)
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.SELL, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.TEST),
             init_context)
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.BUY, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.VALIDATION),
             init_context)
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.HOLD, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.VALIDATION),
             init_context)
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.SELL, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.VALIDATION),
             init_context)
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.BUY, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.TRAINING),
             init_context)
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.HOLD, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.TRAINING),
             init_context)
         self.assertDictEqual(
-            te.on_action(ia_context.copy(),
-                         ActionType.SELL, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, ia_context.copy())),
+							 ChunkType.TRAINING),
             init_context)
 
         # --- test on invalid action and changed balance
-
+        te.on_transition(TransitionResult(State()))
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.BUY, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.TEST),
             b_context)
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.HOLD, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.TEST),
             b_context)
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.SELL, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.TEST),
             b_context)
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.BUY, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.VALIDATION),
             b_context)
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.HOLD, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.VALIDATION),
             b_context)
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.SELL, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.VALIDATION),
             b_context)
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.BUY, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.TRAINING),
             b_context)
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.HOLD, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.TRAINING),
             b_context)
         self.assertDictEqual(
-            te.on_action(ia_b_context.copy(),
-                         ActionType.SELL, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, ia_b_context.copy())),
+							 ChunkType.TRAINING),
             init_context)
 
         # --- test on changed balance
 
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.BUY, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+                                              State(None, b_context.copy())),
+                             ChunkType.TEST),
             b_context)
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.HOLD, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+                                              State(None, b_context.copy())),
+							 ChunkType.TEST),
             b_context)
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.SELL, ChunkType.TEST),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+                                              State(None, b_context.copy())),
+							 ChunkType.TEST),
             b_context)
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.BUY, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+                                              State(None, b_context.copy())),
+							 ChunkType.VALIDATION),
             b_context)
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.HOLD, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, b_context.copy())),
+							 ChunkType.VALIDATION),
             b_context)
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.SELL, ChunkType.VALIDATION),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, b_context.copy())),
+							 ChunkType.VALIDATION),
             b_context)
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.BUY, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.BUY, 0,
+											  State(None, b_context.copy())),
+							 ChunkType.TRAINING),
             b_context)
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.HOLD, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.HOLD, 0,
+											  State(None, b_context.copy())),
+							 ChunkType.TRAINING),
             b_context)
         self.assertDictEqual(
-            te.on_action(b_context.copy(),
-                         ActionType.SELL, ChunkType.TRAINING),
+            te.on_transition(TransitionResult(ActionType.SELL, 0,
+											  State(None, b_context.copy())),
+							 ChunkType.TRAINING),
             init_context)
 
     def test_calculate_reward(self):
@@ -469,3 +525,338 @@ class TestSimulationEnvironment(unittest.TestCase):
                 te.perform_transition(None, copy.deepcopy(open_position),
                                       ActionType.HOLD, ct),
                 open_position)
+
+    def test_configured_env(self):
+        FEE = 0.1
+        REM = 1-FEE
+
+        with open('config/simulation.json', 'r') as f:
+            sim_config = json.load(f)['environment']
+            sim_config = TradingEnvironment.Config.from_dict(sim_config)
+        with open('config/agent.json', 'r') as f:
+            agent_config = json.load(f)
+            input_config = DynamicNN.Config.Input.from_dict(
+                agent_config['input']).data[1].config
+
+        norm = Normalizer()
+        sm = StateManager()
+
+        asset_provider = MockChunkProvider(self)
+        asset_provider.next_sample = Sample(None,
+                                            {'close': 100, 'open': 100})
+
+        state_provider = StateProvider(sm, norm, input_config)
+
+        sp = SampleProvider({'time_series': asset_provider,
+                            'meta': state_provider})
+
+        agent = MockAgent(self)
+
+        ex = StateSourcedExchanger(StateSourcedExchanger.Config.from_dict({
+            'pairs': [{
+                'asset': 'BTC',
+                'currency': 'EUR',
+                'fee': {
+                    'relative': FEE,
+                    'fixed': 0
+                },
+                'candle_src': 'time_series'
+            }]
+        }))
+
+        sim = TradingEnvironment(sim_config, ex)
+
+        @dataclass
+        class Context:
+            position_open: bool
+            balance: float
+
+        def set_followup_price(price):
+            if isinstance(price, list):
+                asset_provider.next_sample = [
+                    Sample(Tensor([0]), {'close': p, 'open': p})
+                    for p in price
+                ]
+            else:
+                asset_provider.next_sample =\
+                    Sample(Tensor([0]), {'close': price, 'open': price})
+
+        def assert_exp(action: ActionType,
+                       reward: int,
+                       old_context: Context,
+                       new_context: Context):
+            agent.set_next(action.value)
+            exp = ep.provide_experience().experience
+
+            self.assertEqual(exp.reward, reward)
+            self.assertEqual(exp.action, action.value)
+
+            self.assertEqual(exp.old_state['meta'][0][1],
+                             np.log(old_context.balance) / np.log(1.10))
+            self.assertEqual(exp.old_state['meta'][0][0],
+                             1 if old_context.position_open else 0)
+            self.assertEqual(exp.new_state['meta'][0][1],
+                             np.log(new_context.balance) / np.log(1.10))
+            self.assertEqual(exp.new_state['meta'][0][0],
+                             1 if new_context.position_open else 0)
+
+            return new_context
+
+        def log(x: float):
+            return np.log(x) / np.log(1.10)
+
+        ep = ExperienceProvider(sm, sp, agent, sim)
+
+        set_followup_price(100)
+
+        ep.start(ChunkType.TRAINING)
+        # price: 100
+
+        #old_context = Context(position_open=False, balance=1)
+
+        for i in range(2):
+            # HOLD on closed;
+            #   position_open: False
+            #   balance: 1
+            # reward: wait_penalty
+            assert_exp(action=ActionType.HOLD,
+                       reward=-1,
+                       old_context=Context(
+                            position_open=False,
+                            balance=1
+                        ),
+                       new_context=Context(
+                            position_open=False,
+                            balance=1
+                        ))
+            # SELL on closed -> no change;
+            #   position_open: False
+            #   balance: 1
+            # reward: invalid_action_penalty
+
+            assert_exp(action=ActionType.SELL,
+                       reward=-100,
+                       old_context=Context(
+                            position_open=False,
+                            balance=1
+                        ),
+                       new_context=Context(
+                            position_open=False,
+                            balance=1
+                        ))
+
+            set_followup_price(50)
+            # BUY on closed
+            #   position_open: True
+            #   balance: (1-F)^2 * P1 / P0
+            # reward: 0
+            # new price: 50
+            assert_exp(action=ActionType.BUY,
+                       reward=0,
+                       old_context=Context(
+                            position_open=False,
+                            balance=1
+                        ),
+                       new_context=Context(
+                            position_open=True,
+                            balance=1
+                        ))
+
+            # HOLD on open
+            # reward: hold_penalty
+            # new price: 200
+            set_followup_price(200)
+            assert_exp(
+                action=ActionType.HOLD,
+                reward=0,
+                old_context=Context(
+                    position_open=True,
+                    balance=REM**2 * 50 / 100
+                ),
+                new_context=Context(
+                    position_open=True,
+                    balance=REM**2 * 50 / 100
+                ))
+
+            # BUY on open
+            # reward: invalid_action_penalty
+            # new price: 500
+            set_followup_price(500)
+            assert_exp(
+                action=ActionType.BUY,
+                reward=-100,
+                old_context=Context(
+                    position_open=True,
+                    balance=REM**2 * 200 / 100
+                ),
+                new_context=Context(
+                    position_open=True,
+                    balance=REM**2 * 200 / 100
+                ))
+            # SELL on open
+            #   position_open: False
+            #   balance: 1
+            # reward: log((1-F)**2 * P_old / P0)
+            # new price: 100
+            set_followup_price(100)
+            assert_exp(
+                action=ActionType.SELL,
+                reward=log(REM**2 * 500 / 100),
+                old_context=Context(
+                    position_open=True,
+                    balance=REM**2 * 500 / 100
+                ),
+                new_context=Context(
+                    position_open=False,
+                    balance=1
+                ))
+
+    def test_learing_inalid_actions(self):
+
+        class MockLoader(OHCLLoader):
+            def get(self,
+                    pair: str, interval: str,
+                    earliest: datetime = None,
+                    last: datetime = None) -> pd.DataFrame:
+                # sin-curve with 10000 samples and wavelength of 1000 samples
+                x = 2 * np.pi * np.arange(N) / T
+                base_line = np.sin(x)
+                data = np.concatenate(
+                    [base_line + np.random.normal(0, 0.1, (N, 4)),
+                     np.random.random((N, 1))], axis=1)
+
+                return pd.DataFrame({
+                    'open': data[0],
+                    'high': data[1],
+                    'low': data[2],
+                    'close': data[3],
+                    'volume': data[4],
+                    'time': pd.timedelta_range('2024-08-04 12:00', periods=N)
+                })
+
+        FEE = 0
+        N = 10000
+        T = 100
+
+        # --- prepare config
+
+        with open('config/simulation.json', 'r') as f:
+            sim_config = json.load(f)['environment']
+            sim_config = TradingEnvironment.Config.from_dict(sim_config)
+        with open('config/data.json', 'r') as f:
+            data_config = json.load(f)
+            data_config = AssetManager.Config.from_dict(data_config)
+        with open('config/agent.json', 'r') as f:
+            agent_config = json.load(f)
+            input_config \
+                = DynamicNN.Config.Input.from_dict(agent_config['input'])
+            nn_config = DynamicNN.Config.from_dict(agent_config['nn'])
+
+        with open('config/training.json', 'r') as f:
+            trainer_cfg = json.load(f)
+            trainer_cfg = DQNTrainer.Config.from_dict(trainer_cfg)
+
+        with open('config/data.json', 'r') as f:
+            data_config = json.load(f)
+            data_config = AssetManager.Config.from_dict(data_config)
+
+        data_config.chunks.chunk_size = 510
+        data_config.chunks.test_chunk_cnt = 1
+
+        # --- init sample provider
+        am = AssetManager(data_config, False)
+        am._cache_asset = lambda _: None
+        am._create_source = lambda _: MockLoader()
+
+        norm = Normalizer()
+        sm = StateManager()
+
+        sp = SampleProvider.from_config(norm, am, sm, input_config)
+
+        # --- init environment
+
+        ex = StateSourcedExchanger(StateSourcedExchanger.Config.from_dict({
+            'pairs': [{
+                'asset': 'BTC',
+                'currency': 'EUR',
+                'fee': {
+                    'relative': FEE,
+                    'fixed': 0
+                },
+                'candle_src': 'time_series'
+            }]
+        }))
+        sim = TradingEnvironment(sim_config, ex)
+
+        # --- prepare trainer
+
+        nn = DynamicNN(nn_config, input_config).cuda()
+        trainer = DQNTrainer.from_config(nn, trainer_cfg)
+
+        agent = EpsilonGreedyArbiter(DeepQFunction(nn))
+
+        exp = ExperienceProvider(sm, sp, agent, sim)
+
+        class Provider:
+            def __init__(self) -> None:
+                self.samples = []
+                self.ix = -1
+                self.size = 1000
+
+            def provide(self):
+                e = exp.provide_experience()
+
+                if len(self.samples) != self.size:
+                    self.samples.append(e)
+
+                self.ix += 1
+                if self.ix == self.size:
+                    self.ix = 0
+                return e
+
+            def validate(self):
+                values = {'buy': 0, 'sell': 0, 'hold': 0, 'wait': 0, 'inv': 0,
+                          'reward': 0}
+
+                with torch.no_grad():
+
+                    watch = benchmark.Watch()
+                    watch.start()
+                    for exp, w, r in self.samples:
+                        res = perform_transition(
+                            agent, sim, sp,
+                            r.old_state, ChunkType.VALIDATION,
+                            cuda=True)
+
+                        values['reward'] += res.reward
+
+                        if 'invalid_action' in res.new_state.context:
+                            values['inv'] += 1
+                        elif res.action == ActionType.BUY.value:
+                            values['buy'] += 1
+                        elif res.action == ActionType.SELL.value:
+                            values['sell'] += 1
+                        elif res.action == ActionType.HOLD.value:
+                            if res.old_state.context['position_open']:
+                                values['hold'] += 1
+                            else:
+                                values['wait'] += 1
+
+                    print(f'Exploration time: {watch.elapsed()} s')
+                    print(f'Buy: {values["buy"]}, Sell: {values["sell"]}, '
+                        f'Invalid: {values["inv"]}, '
+                        f'Hold: {values["hold"]}, Wait: {values["wait"]}')
+                    print(f'Total reward: {values["reward"]}')
+
+        prov = Provider()
+
+        # --- begin training
+        for j in range(10):
+            exp.start(ChunkType.TRAINING)
+            i = 0
+            while exp.has_next():
+                trainer.perform_exploration(10, prov.provide)
+                trainer.perform_training(32, 1, True)
+                i += 1
+                if i % 100 == 0:
+                    prov.validate()

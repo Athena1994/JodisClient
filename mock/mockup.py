@@ -1,8 +1,46 @@
 
 from typing import Self
 from unittest import TestCase
+import unittest
+
+import numpy as np
 from core.data.data_provider import (ChunkIterator, ChunkProvider, ChunkReader,
                                      ChunkType, ContinuousProvider, Sample)
+from core.qlearning.q_arbiter import Arbiter
+
+
+class MockAgent(Arbiter):
+    def __init__(self,
+                 testcase: unittest.TestCase,
+                 expected_shape: dict = None)\
+          -> None:
+        self._next_action = 0
+        self._test_case = testcase
+        self._expect_explore = None
+
+        self._expect_call = None
+        self._was_called = False
+
+        self.expected_input_shape = expected_shape
+
+    def assert_called(self):
+        self._test_case.assertTrue(self._was_called)
+        self._was_called = False
+
+    def set_next(self, action: int):
+        self._next_action = action
+
+    def decide(self, state: object, explore: bool) -> np.array:
+        if self._expect_call is not None and not self._expect_call:
+            self._test_case.fail("Unexpected call")
+        if self._expect_explore is not None:
+            self._test_case.assertEqual(explore, self._expect_explore)
+
+        if self.expected_input_shape is not None:
+            self._test_case.assertDictEqual(self.expected_input_shape,
+                                            {k: state[k].shape for k in state})
+
+        return np.array([self._next_action])
 
 
 class DummyContProvider(ContinuousProvider):
@@ -41,7 +79,7 @@ class DummyContProvider(ContinuousProvider):
 
 
 class DummyChunkReader(ChunkReader):
-    def __init__(self, ut: TestCase, parent: "DummyChunkProvider") -> None:
+    def __init__(self, ut: TestCase, parent: "MockChunkProvider") -> None:
         self.test = ut
         self.parent = parent
 
@@ -69,7 +107,7 @@ class DummyChunkReader(ChunkReader):
 
 
 class DummyIter(ChunkIterator):
-    def __init__(self, ut: TestCase, parent: "DummyChunkProvider") -> None:
+    def __init__(self, ut: TestCase, parent: "MockChunkProvider") -> None:
         self.test = ut
         self.parent = parent
 
@@ -86,7 +124,7 @@ class DummyIter(ChunkIterator):
         return 0
 
 
-class DummyChunkProvider(ChunkProvider):
+class MockChunkProvider(ChunkProvider):
     def __init__(self, ut: TestCase) -> None:
         self.test = ut
 

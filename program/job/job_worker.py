@@ -6,65 +6,13 @@
 
 import argparse
 from dataclasses import dataclass
-import json
 import logging
-import os
-import shutil
-import tempfile
 import time
-import zipfile
-
 from program.base_program import BaseProgram
-from program.config_loader import ConfigFiles
+from program.job.job_packer import JobExtractor
 from program.training_manager import TrainingManager, TrainingReporter
 from utils.config_utils import assert_fields_in_dict
-
-logging.basicConfig(filename="worker.log",
-                    level=logging.INFO,
-                    format="%(asctime)s - %(levelname)s - %(message)s")
-
-
-@dataclass
-class JobConfig:
-    cfg: ConfigFiles
-
-    @staticmethod
-    def from_dict(d: dict):
-        assert_fields_in_dict(d, ['files'])
-        return JobConfig(ConfigFiles.from_dict(d['files']))
-
-
-class TmpDir:
-    def __init__(self):
-        self.path = None
-
-    def __enter__(self):
-        self.path = tempfile.mkdtemp()
-        return self.path
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        shutil.rmtree(self.path)
-
-
-def load_job(tmp_dir: str, file: str) -> JobConfig:
-    if not os.path.isfile(file):
-        raise FileNotFoundError("Job archive is not found or not a file.")
-
-    with zipfile.ZipFile(file, "r") as zip_ref:
-        zip_ref.extractall(tmp_dir)
-
-    job_cfg_file = os.path.join(tmp_dir, 'job.json')
-
-    if not os.path.isfile(job_cfg_file):
-        raise FileNotFoundError("job.json not found in archive.")
-
-    with open(job_cfg_file, 'r') as f:
-        job = JobConfig.from_dict(json.load(f))
-
-    job.cfg = job.cfg.with_base_path(tmp_dir)
-
-    return job
-
+from utils.path import TmpDir
 
 @dataclass
 class JobReport:
@@ -119,31 +67,34 @@ class JobReport:
 
 def main():
 
-    update_time_ms = 1000
-    job_file = "examples/example_job.zip"
-
-    logging.info("Starting worker script...")
-
     parser = argparse.ArgumentParser(description="Worker script for training.")
     parser.add_argument("job", help="Path to job archive.")
     parser.add_argument("--update", "-u", default=1000,
                         help="ms between updates.")
+    parser.add_argument("--log", "-l", default="worker.log",
+                        help="ms between updates.")
 
     args = parser.parse_args()
-    job_file = args.job
-    update_time_ms = int(args.update)
 
+    update_time = float(args.update) / 1000
+
+    logging.basicConfig(filename=args.log,
+                        level=logging.INFO,
+                        format="%(asctime)s - %(levelname)s - %(message)s")
+
+    logging.info("Starting worker script...")
     try:
         with TmpDir() as tmp_dir:
-            job = load_job(tmp_dir, job_file)
-            program = BaseProgram(job.cfg)
+            ex = JobExtractor(args.job, tmp_dir)
+
+            program = BaseProgram(ex.get_config())
 
         program.start_training_async()
 
         training_info = program._trainer.get_info()
 
         while program.is_running():
-            time.sleep(update_time_ms / 1000)
+            time.sleep(update_time)
 
             tr_state = program._trainer._reporter.get_state()
             report = JobReport.from_state(tr_state, training_info)

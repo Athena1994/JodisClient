@@ -146,6 +146,7 @@ class TrainingReporter:
             if update.type == TrainingReporter.Update.Type.TRAINING_DATA:
                 if self._state.phase != TrainingReporter.State.Phase.TRAINING:
                     self._state.phase = TrainingReporter.State.Phase.TRAINING
+                    self._state.training.ix = 0
                 self._state.training.ix += update.data['cnt']
                 self._state.training.av_time = update.data['av_time']
 

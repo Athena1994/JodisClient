@@ -48,7 +48,8 @@ class Watch:
     def stop(self,
              key: str,
              since_beginning: bool = False,
-             final: bool = False) -> float:
+             final: bool = False,
+             return_average: bool = False) -> float:
 
         s = self._start if since_beginning else self._last_stop
         self._last_stop = time.time_ns()
@@ -66,7 +67,11 @@ class Watch:
         else:
             val, num = self._av_time[key]
             self._av_time[key] = (((val * num) + t) / (num + 1), num + 1)
-        return t
+
+        if return_average:
+            return t, self._av_time[key][0]
+        else:
+            return t
 
     def print(self, title: str, scale: int = 1, digits: int = 4):
 

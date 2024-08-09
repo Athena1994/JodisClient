@@ -4,10 +4,10 @@ from enum import Enum
 import logging
 from queue import Queue
 import threading
-from typing import List, Self
+from typing import List
 from core.data.data_provider import ChunkType
 from core.qlearning.dqn_trainer import DQNTrainer
-from core.qlearning.q_arbiter import EpsilonGreedyArbiter, ExplorationArbiter
+from core.qlearning.q_arbiter import ExplorationArbiter
 from core.simulation.experience_provider import ExperienceProvider
 from core.simulation.sample_provider import SampleProvider
 from core.simulation.state_manager import StateManager
@@ -30,18 +30,24 @@ class TrainingReporter:
 
     @dataclass
     class State:
+        @dataclass
+        class Progress:
+            ix: int
+            av_time: float
+            last_time: float
+
+            def copy(self):
+                return TrainingReporter.State.Progress(
+                    self.ix, self.av_time, self.last_time
+                )
+
         class Phase(Enum):
             TRAINING = 0,
             VALIDATION = 1
 
-        epoch: int
-        last_epoch_time: float
-
-        current_training_ix: int
-        training_step_time: float
-
-        current_validation_ix: int
-        validation_sample_time: float
+        epoch: Progress
+        training: Progress
+        validation: Progress
 
         validation_samples: List[DQNTrainer.ExperienceTuple]
         last_evaluation: dict
@@ -50,12 +56,9 @@ class TrainingReporter:
 
         def copy(self):
             return TrainingReporter.State(
-                self.epoch,
-                self.last_epoch_time,
-                self.current_training_ix,
-                self.training_step_time,
-                self.current_validation_ix,
-                self.validation_sample_time,
+                self.epoch.copy(),
+                self.training.copy(),
+                self.validation.copy(),
                 (self.validation_samples or []).copy(),
                 (self.last_evaluation or {}).copy(),
                 self.phase
@@ -63,7 +66,9 @@ class TrainingReporter:
 
     def __init__(self, evaluator: ExperienceEvaluator):
         self._state = TrainingReporter.State(
-            0, 0, 0, 0, 0, 0,
+            TrainingReporter.State.Progress(0, 0, 0),
+            TrainingReporter.State.Progress(0, 0, 0),
+            TrainingReporter.State.Progress(0, 0, 0),
             None, None,
             TrainingReporter.State.Phase.TRAINING)
 
@@ -104,26 +109,29 @@ class TrainingReporter:
         with self._lock:
             return self._state.copy()
 
-    def add_training_update(self, new_sample_cnt: int, step_time: float):
+    def add_training_update(self,
+                            new_sample_cnt: int,
+                            av_time: float):
         self._add_update(
             TrainingReporter.Update.Type.TRAINING_DATA,
             {'cnt': new_sample_cnt,
-             'step_time': step_time}
+             'av_time': av_time}
         )
 
     def add_validation_update(self,
                               experiences: List[DQNTrainer.ExperienceTuple],
-                              sample_time: float):
+                              av_time: float):
         self._add_update(
             TrainingReporter.Update.Type.VALIDATION_DATA,
             {'experiences': experiences,
-             'sample_time': sample_time}
+             'av_time': av_time}
         )
 
-    def add_epoch_update(self, epoch_time: float):
+    def add_epoch_update(self, av_time: float, last_time: float):
         self._add_update(
             TrainingReporter.Update.Type.NEW_EPOCH,
-            {'time': epoch_time}
+            {'av_time': av_time,
+             'last_time': last_time}
         )
 
     def _add_update(self, type: Update.Type, data: dict):
@@ -138,8 +146,8 @@ class TrainingReporter:
             if update.type == TrainingReporter.Update.Type.TRAINING_DATA:
                 if self._state.phase != TrainingReporter.State.Phase.TRAINING:
                     self._state.phase = TrainingReporter.State.Phase.TRAINING
-                self._state.current_training_ix += update.data['cnt']
-                self._state.training_step_time = update.data['step_time']
+                self._state.training.ix += update.data['cnt']
+                self._state.training.av_time = update.data['av_time']
 
             elif update.type == TrainingReporter.Update.Type.VALIDATION_DATA:
                 if self._state.phase != TrainingReporter.State.Phase.VALIDATION:
@@ -147,21 +155,29 @@ class TrainingReporter:
                     self._state.validation_samples = []
                 lst = update.data['experiences']
                 self._state.validation_samples.extend(lst)
-                self._state.current_validation_ix += len(lst)
-                self._state.validation_sample_time = update.data['sample_time']
+                self._state.validation.ix += len(lst)
+                self._state.validation.av_time = update.data['av_time']
 
                 self._state.last_evaluation = self._evaluator.evaluate(
                     self._state.validation_samples
                 )
 
             elif update.type == TrainingReporter.Update.Type.NEW_EPOCH:
-                self._state.epoch += 1
-                self._state.current_training_ix = 0
-                self._state.current_validation_ix = 0
-                self._state.last_epoch_time = update.data['time']
+                self._state.epoch.ix += 1
+                self._state.epoch.av_time = update.data['av_time']
+                self._state.epoch.last_time = update.data['last_time']
 
 
 class TrainingManager:
+    @dataclass
+    class Info:
+        experiences_per_step: int
+
+        training_samples_cnt: int
+        validation_sample_cnt: int
+
+        max_epoch: int
+
     def __init__(self,
                  state_manager: StateManager,
                  sim: TradingEnvironment,
@@ -206,6 +222,14 @@ class TrainingManager:
         return (self._training_thread is not None
                 and self._training_thread.is_alive())
 
+    def get_info(self) -> Info:
+        return TrainingManager.Info(
+            self._cfg.iterations.experience_cnt,
+            self._experience_provider.get_experience_cnt(ChunkType.TRAINING),
+            self._experience_provider.get_experience_cnt(ChunkType.VALIDATION),
+            self._cfg.iterations.max_epoch_cnt
+        )
+
     def _run_training(self):
         epoch = 0
         self._abort = False
@@ -213,6 +237,7 @@ class TrainingManager:
         self._watch.reset()
 
         while not self._abort and epoch < self._cfg.iterations.max_epoch_cnt:
+            self._agent.update(epoch)
             self._train_and_validate_epoch()
             epoch += 1
         self._reporter.stop(True)
@@ -227,9 +252,9 @@ class TrainingManager:
 
         self._perform_validation()
 
-        epoch_time = self._watch.stop('epoch', True, True)
+        epoch_time, av = self._watch.stop('epoch', True, True, True)
         if self._reporter is not None:
-            self._reporter.add_epoch_update(epoch_time)
+            self._reporter.add_epoch_update(av, epoch_time)
 
     def _training_step(self):
         self._watch.stop('training_step_start')

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import os
 from core.data.assets.asset_manager import AssetManager
 from core.nn.dynamic_nn import DynamicNN
 from core.qlearning.dqn_trainer import DQNTrainer
@@ -7,6 +8,7 @@ from core.qlearning.q_arbiter import ExplorationArbiter
 from program.exchange_manager import StateSourcedExchanger
 from program.experience_evaluator import ExperienceEvaluator
 from program.trading_environment import TradingEnvironment
+from utils.config_utils import assert_fields_in_dict
 
 
 @dataclass
@@ -16,6 +18,27 @@ class ConfigFiles:
     training: str
     simulation: str
     evaluation: str
+
+    @staticmethod
+    def from_dict(d: dict):
+        assert_fields_in_dict(d, ['agent', 'data', 'training', 'simulation',
+                                  'evaluation'])
+        return ConfigFiles(
+            d['agent'],
+            d['data'],
+            d['training'],
+            d['simulation'],
+            d['evaluation']
+        )
+
+    def with_base_path(self, base_path: str):
+        return ConfigFiles(
+            os.path.join(base_path, self.agent),
+            os.path.join(base_path, self.data),
+            os.path.join(base_path, self.training),
+            os.path.join(base_path, self.simulation),
+            os.path.join(base_path, self.evaluation)
+        )
 
 
 class ConfigLoader:

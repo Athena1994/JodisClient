@@ -17,6 +17,8 @@ from program.training_manager import TrainingManager, TrainingReporter
 
 
 class BaseProgram:
+
+
     def __init__(self,
                  config_files: ConfigFiles,
                  use_cuda: bool = True):
@@ -63,6 +65,9 @@ class BaseProgram:
                                                       MetricFactory())
         self.reporter = None
 
-    def start_training(self):
+    def start_training_async(self):
         self.reporter = TrainingReporter(self.evaluator)
         self._trainer.start_training_async(self.reporter)
+
+    def is_running(self) -> bool:
+        return self._trainer.is_running()

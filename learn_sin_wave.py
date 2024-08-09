@@ -20,7 +20,7 @@ def main():
     )
     prog = BaseProgram(cfg_files)
 
-    prog.start_training()
+    prog.start_training_async()
 
     ep = prog._trainer._experience_provider
 

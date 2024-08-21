@@ -25,12 +25,21 @@ class Job(Base):
 
 
 class JobStatus(Base):
-    class State(enum.Enum):
+    class SubState(enum.Enum):
         CREATED = 'CREATED'
+        RETURNED = 'RETURNED'
+
+        PENDING = 'PENDING'
         IN_PROGRESS = 'ASSIGNED'
-        STARTED = 'STARTED'
         PAUSED = 'PAUSED'
+
         FAILED = 'FAILED'
+        FINISHED = 'FINISHED'
+        ABORTED = 'ABORTED'
+
+    class State(enum.Enum):
+        UNASSIGNED = 'UNASSIGNED'
+        ASSIGNED = 'ASSIGNED'
         FINISHED = 'FINISHED'
 
     __tablename__ = 'JobStatus'
@@ -39,7 +48,8 @@ class JobStatus(Base):
     job_id: Mapped[int] = mapped_column(
         "JobId", ForeignKey('Job.Id', ondelete='CASCADE'))
 
-    status: Mapped[State] = mapped_column("State")
+    state: Mapped[State] = mapped_column("State")
+    sub_state: Mapped[SubState] = mapped_column("SubState")
     creation_timestamp: Mapped[datetime] = mapped_column(
         'Timestamp', default=func.current_timestamp())
 
@@ -79,17 +89,21 @@ class ClientConnectionState(Base):
     client: Mapped["Client"] = relationship(back_populates='connection_states')
 
 
+ConnectionState = ClientConnectionState.State
+
+
 def create_initial_job_status(mapper,
                               connection,
                               target: Job):
-    status = JobStatus(status=JobStatus.State.CREATED)
+    status = JobStatus(state=JobStatus.State.UNASSIGNED,
+                       sub_state=JobStatus.SubState.CREATED)
     target.states.append(status)
 
 
 def create_initial_connection(mapper,
                               connection,
                               target: Client):
-    status = ClientConnectionState(state=ClientConnectionState.State.CONNECTED)
+    status = ClientConnectionState(state=ConnectionState.DISCONNECTED)
     target.connection_states.append(status)
 
 

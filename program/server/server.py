@@ -7,6 +7,7 @@ from .models import (Base, Client, ClientConnectionState, Job, JobStatus)
 from utils.config_utils import assert_fields_in_dict
 
 JState = JobStatus.State
+CState = ClientConnectionState.State
 
 
 class Server:
@@ -41,12 +42,15 @@ class Server:
 
         connect_query = f'mysql+pymysql://{credentials}{target}'
         self._engine = create_engine(connect_query)
-        self._session = Session(self._engine)
 
         self._socket_to_client = {}
         self._client_to_socket = {}
 
+    def create_session(self) -> Session:
+        return Session(self._engine)
+
     def get_jobs(self,
+                 session: Session,
                  include_unassigned: bool,
                  include_finished: bool,
                  include_assigned: bool):
@@ -76,47 +80,54 @@ class Server:
                 )
             )
         )
-        return self._session.execute(jobs_stmt).scalars()
+        result = session.execute(jobs_stmt).scalars()
+        return result
 
     def add_job(self, job_config: dict):
-        self._session.add(Job(configuration=job_config))
-        self._session.commit()
+        with Session(self._engine) as session:
+            session.add(Job(configuration=job_config))
+            session.commit()
 
     def assign_job(self, job_id: int):
-        job = self._session.query(Job).filter(Job.id == job_id).first()
-        if job is None:
-            raise ValueError(f"Job with id {job_id} not found")
+        with Session(self._engine) as session:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if job is None:
+                raise ValueError(f"Job with id {job_id} not found")
 
-        job.states.append(JobStatus(s=JobStatus.State.ASSIGNED,
-                                    sub_state=JobStatus.SubState.PENDING))
-        self._session.commit()
+            job.states.append(JobStatus(s=JobStatus.State.ASSIGNED,
+                                        sub_state=JobStatus.SubState.PENDING))
+            session.commit()
 
     def add_client(self, name: str):
         client = Client(name=name)
-        self._session.add(client)
-        self._session.commit()
+        with Session(self._engine) as session:
+            session.add(client)
+            session.commit()
         return client.id
 
-    def get_all_clients(self):
-        return self._session.query(Client).all()
+    def get_all_clients(self, session):
+        result = session.query(Client).all()
+        return result
 
     def register_socket(self, socket_id: int, client_id: int):
         if socket_id in self._socket_to_client:
             raise ValueError(f"Socket {socket_id} already registered")
 
-        client = self._session.query(Client)\
-            .filter(Client.id == client_id)\
-            .first()
-        if client is None:
-            raise ValueError(f"Client with id {client_id} not found")
+        with Session(self._engine) as session:
 
-        self._socket_to_client[socket_id] = client_id
-        self._client_to_socket[client_id] = socket_id
+            client = session.query(Client)\
+                .filter(Client.id == client_id)\
+                .first()
+            if client is None:
+                raise ValueError(f"Client with id {client_id} not found")
 
-        client.connection_states.append(
-            ClientConnectionState(state=ClientConnectionState.State.CONNECTED,
-                                  message='Connected'))
-        self._session.commit()
+            self._socket_to_client[socket_id] = client_id
+            self._client_to_socket[client_id] = socket_id
+
+            client.connection_states.append(
+                ClientConnectionState(state=CState.CONNECTED,
+                                      message='Connected'))
+            session.commit()
 
     def deregister_socket(self, socket_id: int) -> int:
         if socket_id not in self._socket_to_client:
@@ -127,14 +138,15 @@ class Server:
         del self._socket_to_client[socket_id]
         del self._client_to_socket[client_id]
 
-        client = self._session.query(Client)\
-            .filter(Client.id == client_id)\
-            .first()
-        client.connection_states.append(
-            ClientConnectionState(
-                state=ClientConnectionState.State.DISCONNECTED,
-                message='Disonnected'))
-        self._session.commit()
+        with Session(self._engine) as session:
+            client = session.query(Client)\
+                .filter(Client.id == client_id)\
+                .first()
+            client.connection_states.append(
+                ClientConnectionState(
+                    state=ClientConnectionState.State.DISCONNECTED,
+                    message='Disonnected'))
+            session.commit()
 
         return client_id
 

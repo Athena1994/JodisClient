@@ -5,6 +5,7 @@ import logging
 
 from flask import Blueprint, request
 from flask_injector import inject
+from pytest import Session
 
 from program.server.server import Server
 from program.server.models import ClientConnectionState as CCS
@@ -35,10 +36,10 @@ def register_client(server: Server):
 @inject
 def get_clients(server: Server):
     clients = []
-
-    for c in server.get_all_clients():
-        clients.append(Client(
-            name=c.name,
-            connected=c.connection_states[-1].state == CCS.State.CONNECTED))
+    with server.create_session() as session:
+        for c in server.get_all_clients(session):
+            clients.append(Client(
+                name=c.name,
+                connected=c.connection_states[-1].state == CCS.State.CONNECTED))
 
     return clients

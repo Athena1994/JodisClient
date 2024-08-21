@@ -27,17 +27,14 @@ def get_jobs(server: Server):
     finished = all or 'finished' in request.args
 
     jobs = []
-    for j in server.get_jobs(include_unassigned=unassigned,
-                             include_assigned=assigned,
-                             include_finished=finished):
-        print(j.id)
-        print(j.states[-1].state.value)
-        print(j.states[-1].sub_state.value)
-        print(j.client.id if j.client is not None else -1)
-        jobs.append(Job(j.id,
-                        j.states[-1].state.value,
-                        j.states[-1].sub_state.value,
-                        j.client.id if j.client is not None else -1))
-
+    with server.create_session() as session:
+        for j in server.get_jobs(session,
+                                 include_unassigned=unassigned,
+                                 include_assigned=assigned,
+                                 include_finished=finished):
+            jobs.append(Job(j.id,
+                            j.states[-1].state.value,
+                            j.states[-1].sub_state.value,
+                            j.client.id if j.client is not None else -1))
 
     return jobs

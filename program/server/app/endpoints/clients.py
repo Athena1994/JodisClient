@@ -5,7 +5,6 @@ import logging
 
 from flask import Blueprint, request
 from flask_injector import inject
-from pytest import Session
 
 from program.server.server import Server
 from program.server.models import ClientConnectionState as CCS

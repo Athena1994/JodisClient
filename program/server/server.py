@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 from sqlalchemy import and_, create_engine, func, or_, select, tuple_
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,12 @@ CState = ClientConnectionState.State
 
 
 class Server:
+
+    class IndexValueError(ValueError):
+        pass
+
+    class StateError(ValueError):
+        pass
 
     @dataclass
     class Config:
@@ -49,6 +56,18 @@ class Server:
     def create_session(self) -> Session:
         return Session(self._engine)
 
+    def delete_job(self, session: Session, job_id: int):
+        logging.info(f"Deleting job with id {job_id}")
+        job = session.execute(select(Job).where(Job.id == job_id)).scalar()
+        if job is None:
+            raise Server.IndexValueError(f"Job with id {job_id} not found")
+
+        if job.states[-1].state == JState.ASSIGNED:
+            raise Server.StateError("Assigned jobs cannot be deleted.")
+
+        session.delete(job)
+        session.commit()
+
     def get_jobs(self,
                  session: Session,
                  include_unassigned: bool,
@@ -83,10 +102,21 @@ class Server:
         result = session.execute(jobs_stmt).scalars()
         return result
 
-    def add_job(self, job_config: dict):
+    def get_job(self,
+                session: Session,
+                job_id: int):
+        return session.execute(
+            select(Job).where(Job.id == job_id)
+        ).scalar()
+
+    def add_job(self, job_config: dict, name: str, desc: str) -> int:
         with Session(self._engine) as session:
-            session.add(Job(configuration=job_config))
+            job = Job(configuration=job_config,
+                      name=name,
+                      description=desc)
+            session.add(job)
             session.commit()
+            return job.id
 
     def assign_job(self, job_id: int):
         with Session(self._engine) as session:
@@ -103,7 +133,7 @@ class Server:
         with Session(self._engine) as session:
             session.add(client)
             session.commit()
-        return client.id
+            return client.id
 
     def get_all_clients(self, session):
         result = session.query(Client).all()

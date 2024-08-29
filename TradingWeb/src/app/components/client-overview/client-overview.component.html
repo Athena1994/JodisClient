@@ -1,6 +1,6 @@
 <h2>Clients</h2>
 <mat-list>
-    @for (client of clients; track client){
+    @for (client of (clients$ | async); track client){
     <mat-list-item>
         {{ client.name }}
         <span *ngIf="client.connected">connected</span>

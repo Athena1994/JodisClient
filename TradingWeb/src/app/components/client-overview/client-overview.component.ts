@@ -1,27 +1,28 @@
 import { Component, OnInit } from '@angular/core';
 import { Client } from '../../models/client.interface';
 import { ClientService } from '../../services/clients.service';
-import { NgFor, NgIf } from '@angular/common';
+import { CommonModule, NgFor, NgIf } from '@angular/common';
 import { MatListModule } from '@angular/material/list';
+import { select, Store } from '@ngrx/store';
+import { selectClients } from '../../state/clients/clients.selectors';
+import { clientActions } from '../../state/clients/clients.actions';
 
 
 @Component({
   selector: 'app-client-overview',
   standalone: true,
-  imports: [NgFor, NgIf, MatListModule],
+  imports: [CommonModule, MatListModule],
   templateUrl: './client-overview.component.html',
   styleUrl: './client-overview.component.css'
 })
 
 export class ClientOverviewComponent implements OnInit {
-    clients: Client[] = [];
+    clients$ = this.store.pipe(select(selectClients));
 
-    constructor(private clientService: ClientService) {}
+    constructor(private store: Store) {}
 
     ngOnInit() {
-        this.clientService.getClients().subscribe((clients) => {
-            this.clients = clients;
-        })
+        this.store.dispatch(clientActions.load());
     }
 
 }

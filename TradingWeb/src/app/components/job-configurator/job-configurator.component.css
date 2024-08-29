@@ -1,0 +1,13 @@
+
+.container {
+    display: flex;
+    justify-content: stretch;
+}
+.textfield {
+    flex: 1;
+}
+
+
+.textfield textarea {
+    width: 100%;
+  }

@@ -1,7 +1,7 @@
 import { Inject, Injectable} from "@angular/core";
 import { Job } from "../models/job.interface";
 import { HttpClient } from '@angular/common/http';
-import { Observable } from "rxjs";
+import { map, Observable, tap } from "rxjs";
 import { API_URL_TOKEN } from "../app.config";
 
 @Injectable({providedIn: 'root'})
@@ -26,5 +26,18 @@ export class JobService {
 
         return this.http.get<Job[]>(
             this.api_url.toString()+"jobs", {params});
+    }
+    createJob(name: string,
+              description: string,
+              config: JSON): Observable<Job> {
+        return this.http.post<Job[]>(
+            this.api_url.toString()+"job", ({
+                name, description, config
+            })).pipe(map(jobs => jobs[0]));
+    }
+    deleteJobs(jobs: Job[]): Observable<number[]> {
+        return this.http.post<{deletedIds: number[]}>(
+            this.api_url.toString()+"jobs/delete",
+            ({ids: jobs.map(j => j.id)})).pipe(map(res => res.deletedIds));
     }
 }

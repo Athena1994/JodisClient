@@ -1,27 +1,26 @@
-<h2>Unassigned Jobs</h2>
-<mat-list>
-    @for(job of unassignedJobs; track job) {
-    <mat-list-item>
-        {{ job.id }}
-    </mat-list-item>
-}
-</mat-list>
 
 <h2>Assigned Jobs</h2>
-<mat-list>
+<mat-selection-list #assignedJobsList
+                    class="assigned-list mat-theme"
+                    (selectionChange)="onJobSelected($event.options[0].value)"
+                    [multiple]="false">
     @for(job of assignedJobs; track job) {
-        <mat-list-item>
-            {{ job.id }}
-        </mat-list-item>
-    }
-    </mat-list>
+    <mat-list-option [value]="job"
+                     [selected]="job === (selectedJob$ | async)">
+        {{ job.id }}
+    </mat-list-option>
+}
+</mat-selection-list>
 
 <h2>Finished Jobs</h2>
-<mat-list>
+<mat-selection-list #finishedJobsList
+                    class="finished-list mat-theme"
+                    (selectionChange)="onJobSelected($event.options[0].value)"
+                    [multiple]="false">
     @for(job of finishedJobs; track job) {
-        <mat-list-item>
-            {{ job.id }}
-        </mat-list-item>
-    }
-    </mat-list>
+    <mat-list-option [value]="job"
+                     [selected]="job === (selectedJob$ | async)">
+        {{ job.id }}
+    </mat-list-option>
+}
 

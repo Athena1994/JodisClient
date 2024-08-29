@@ -19,8 +19,12 @@ class Job(Base):
     configuration: Mapped[JSON] = mapped_column('Configuration', type_=JSON)
     creation_timestamp: Mapped[datetime] = mapped_column(
         'CreationTimestamp', default=func.current_timestamp())
+    name: Mapped[str] = mapped_column("Name", String(64), nullable=True)
+    description: Mapped[str] = mapped_column(
+        "Description", String(256), nullable=True)
 
-    states: Mapped[List["JobStatus"]] = relationship(back_populates='job')
+    states: Mapped[List["JobStatus"]] = relationship(
+        back_populates='job', cascade='all, delete-orphan',)
     client: Mapped["Client"] = relationship(back_populates='job')
 
 
@@ -60,14 +64,16 @@ class Client(Base):
     __tablename__ = 'Client'
 
     id: Mapped[int] = mapped_column("Id", primary_key=True, autoincrement=True)
-    job_id: Mapped[int] = mapped_column("JobId", ForeignKey('Job.Id'),
-                                        nullable=True)
+    job_id: Mapped[int] = mapped_column(
+        "JobId", ForeignKey('Job.Id', ondelete='SET NULL'), nullable=True)
 
     name: Mapped[str] = mapped_column("Name", String(64), nullable=True)
 
     job: Mapped["Job"] = relationship(back_populates='client')
     connection_states: Mapped[List["ClientConnectionState"]] \
-        = relationship(back_populates='client')
+        = relationship(back_populates='client',
+                       cascade='all, delete-orphan',
+                       passive_deletes=True)
 
 
 class ClientConnectionState(Base):

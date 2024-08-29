@@ -44,7 +44,7 @@ class ConfigFiles:
 class ConfigLoader:
 
     @staticmethod
-    def _load_file(path: str):
+    def _load_file(path: str) -> dict:
         try:
             with open(path, 'r') as f:
                 return json.load(f)
@@ -52,26 +52,35 @@ class ConfigLoader:
             print(f"File {path} not found.")
             raise Exception(f"File {path} not found.")
 
-    def __init__(self, files: ConfigFiles):
+    @staticmethod
+    def from_config_files(files: ConfigFiles):
+        config = (
+            ConfigLoader._load_file(files.agent)
+            | ConfigLoader._load_file(files.data)
+            | ConfigLoader._load_file(files.simulation)
+            | ConfigLoader._load_file(files.training)
+            | ConfigLoader._load_file(files.evaluation)
+        )
+        return ConfigLoader(config)
 
-        agent_cfg = self._load_file(files.agent)
-        data_cfg = self._load_file(files.data)
-        sim_cfg = self._load_file(files.simulation)
-        training_cfg = self._load_file(files.training)
-        evaluation_cfg = self._load_file(files.evaluation)
+    def __init__(self, config: dict):
 
-        self.input = DynamicNN.Config.Input.from_dict(agent_cfg['input'])
-        self.nn = DynamicNN.Config.from_dict(agent_cfg['nn'])
+        assert_fields_in_dict(config, ['input', 'nn', 'assets', 'environment',
+                                       'exchanger', 'evaluation',
+                                       'exploration'])
 
-        self.assets = AssetManager.Config.from_dict(data_cfg)
+        self.input = DynamicNN.Config.Input.from_dict(config['input'])
+        self.nn = DynamicNN.Config.from_dict(config['nn'])
+
+        self.assets = AssetManager.Config.from_dict(config)
 
         self.environment \
-            = TradingEnvironment.Config.from_dict(sim_cfg['environment'])
+            = TradingEnvironment.Config.from_dict(config['environment'])
         self.exchanger \
-            = StateSourcedExchanger.Config.from_dict(sim_cfg['exchanger'])
+            = StateSourcedExchanger.Config.from_dict(config['exchanger'])
 
-        self.training = DQNTrainer.Config.from_dict(training_cfg)
+        self.training = DQNTrainer.Config.from_dict(config)
         self.evaluation \
-            = ExperienceEvaluator.Config.from_dict(evaluation_cfg['evaluation'])
+            = ExperienceEvaluator.Config.from_dict(config['evaluation'])
         self.arbiter \
-            = ExplorationArbiter.Config.from_dict(training_cfg['exploration'])
+            = ExplorationArbiter.Config.from_dict(config['exploration'])

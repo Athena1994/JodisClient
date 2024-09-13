@@ -6,7 +6,7 @@ import os
 import socket
 import time
 
-from client_manager import ClientManager
+from api_client import APIClient
 from utils.config_utils import assert_fields_in_dict
 
 logging.basicConfig(level=logging.INFO)
@@ -38,7 +38,7 @@ class Config:
             return Config.from_dict(json.load(f))
 
 
-def connect_client(client: ClientManager, cfg: Config):
+def connect_client(client: APIClient, cfg: Config):
     if cfg.client_id == -1:
         cfg.client_id = client.register(socket.gethostname())
         cfg.save()
@@ -51,7 +51,7 @@ def main():
     else:
         cfg = Config('localhost', 5000, -1)
 
-    with ClientManager(cfg.server, cfg.port) as client:
+    with APIClient(cfg.server, cfg.port) as client:
         connect_client(client, cfg)
         time.sleep(10)
 

@@ -11,24 +11,24 @@ from torch import Tensor
 import pandas as pd
 import torch
 
-from core.data.assets.asset_manager import AssetManager
-from core.data.data_provider import ChunkType, Sample
-from core.data.loader.ohcl_loader import OHCLLoader
-from core.data.normalizer import Normalizer
-from core.nn.dynamic_nn import DynamicNN
-from core.qlearning.dqn_trainer import DQNTrainer
-from core.qlearning.q_arbiter import DeepQFunction, EpsilonGreedyArbiter
-from core.simulation.experience_provider import ExperienceProvider
-from core.simulation.sample_provider import SampleProvider
-from core.simulation.simulation_environment import State
-from core.simulation.state_manager import StateManager, StateProvider
-from core.simulation.data_classes import TransitionResult
-from core.simulation.utils import perform_transition
-from mock.mockup import MockAgent, MockChunkProvider
-from program.exchange_manager \
+from aithena.core.data.assets.asset_manager import AssetManager
+from aithena.core.data.data_provider import ChunkType, Sample
+from aithena.core.data.loader.ohcl_loader import OHCLLoader
+from aithena.core.data.normalizer import Normalizer
+from aithena.core.nn.dynamic_nn import DynamicNN
+from aithena.core.qlearning.dqn_trainer import DQNTrainer
+from aithena.core.qlearning.q_arbiter import DeepQFunction, EpsilonGreedyArbiter
+from aithena.core.simulation.experience_provider import ExperienceProvider
+from aithena.core.simulation.sample_provider import SampleProvider
+from aithena.core.simulation.simulation_environment import State
+from aithena.core.simulation.state_manager import StateManager, StateProvider
+from aithena.core.simulation.data_classes import TransitionResult
+from aithena.core.simulation.utils import perform_transition
+from aithena.mock.mockup import MockAgent, MockChunkProvider
+from core.exchange_manager \
     import ExchangeDirection, Exchanger, StateSourcedExchanger
-from program.trading_environment import ActionType, TradingEnvironment
-from utils import benchmark
+from core.trading_environment import ActionType, TradingEnvironment
+from aithena.utils import benchmark
 
 
 class DummyExchanger(Exchanger):

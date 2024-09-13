@@ -4,10 +4,10 @@ from unittest import TestCase
 import numpy as np
 from torch import Tensor
 
-from core.data.data_provider import Sample
-from core.qlearning.q_arbiter import Arbiter
-from core.simulation.sample_provider import SampleProvider
-from core.simulation.simulation_environment import SimulationEnvironment
+from aithena.core.data.data_provider import Sample
+from aithena.core.qlearning.q_arbiter import Arbiter
+from aithena.core.simulation.sample_provider import SampleProvider
+from aithena.core.simulation.simulation_environment import SimulationEnvironment
 
 
 class MockSim(SimulationEnvironment):

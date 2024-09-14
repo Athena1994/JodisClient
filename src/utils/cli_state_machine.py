@@ -2,12 +2,9 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from io import TextIOWrapper
 import logging
 import multiprocessing
 import sys
-import threading
-import time
 from typing import Callable, Dict, Generic, List, TypeVar, get_args
 
 
@@ -154,8 +151,9 @@ class CLIStateMachine:
                 if not isinstance(self._state,
                                   get_args(cmd.__orig_bases__[0])[0]):
                     logging.warning('Invalid state type for provided command')
-                self._state = cmd.run(self._state)
-
+                new_state = cmd.run(self._state)
+                if new_state is not None:
+                    self._state = new_state
             prompt = self._state.prompt_prefix(context)
             if len(prompt) != 0:
                 print(f'{self._state.prompt_prefix(context)}: ', end='')

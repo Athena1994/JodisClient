@@ -95,8 +95,8 @@ class ConnectedState(BaseState):
                 return ActiveState(self.client,
                                    result['name'], result['id'])
             else:
-                return ReleasedState(self.client,
-                                     result['name'], result['id'])
+                return SuspendedState(self.client,
+                                      result['name'], result['id'])
         else:
             print('Failed to claim client')
             return self
@@ -145,8 +145,8 @@ class ActiveState(ClaimedState):
         new_state = self.client.release_active_state()
         if new_state:
             print(f"Entered suspended state ({new_state})")
-            return ReleasedState(self.client,
-                                 self._client_name, self._client_id)
+            return SuspendedState(self.client,
+                                  self._client_name, self._client_id)
         else:
             print("Failed to release active state")
             return self
@@ -157,7 +157,7 @@ class ActiveState(ClaimedState):
         )
 
 
-class ReleasedState(ClaimedState):
+class SuspendedState(ClaimedState):
     def __init__(self,
                  client: APIClient,
                  client_name: str,
@@ -188,7 +188,7 @@ class ChangeStateCommand(Command[ClaimedState]):
         self._activate = activate
 
     def run(self, state: ClaimedState) -> BaseState:
-        if self._activate and isinstance(state, ReleasedState):
+        if self._activate and isinstance(state, SuspendedState):
             return state._claim_active(None, None)
         elif not self._activate and isinstance(state, ActiveState):
             return state._release_active(None, None)

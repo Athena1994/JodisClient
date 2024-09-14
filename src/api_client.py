@@ -32,11 +32,25 @@ class APIClient:
             'request_activation',
             lambda: threading.Thread(target=self.on_activation_requested)
                              .start())
+        self._socket.register_handler(
+            'pause_job',
+            lambda: threading.Thread(target=self.on_drop_active_job_requested)
+                             .start())
+        self._socket.register_handler(
+            'cancel_job',
+            lambda: threading.Thread(target=self.on_cancel_active_job_requested)
+                             .start())
 
     def on_release_requested(self) -> None:
         pass
 
     def on_activation_requested(self) -> None:
+        pass
+
+    def on_drop_active_job_requested(self) -> None:
+        pass
+
+    def on_cancel_active_job_requested(self) -> None:
         pass
 
     def _assert_socket_connection(self) -> None:
@@ -134,3 +148,37 @@ class APIClient:
 
     def claim_active_state(self) -> str | None:
         return self._set_state(active=True)
+
+    def drop_active_job(self) -> None:
+        self._assert_socket_connection()
+
+        self._socket.emit('get_active_job', namespace='/client')
+        response = self._socket.receive()
+        if response.event != 'success':
+            logging.warning("no active job to drop")
+            return
+
+        job_id = response.data['id']
+
+        response \
+            = requests.post(f'http://{self._server}:{self._port}/jobs/unassign',
+                            json={'jobIds': [job_id], 'force': True})
+
+        if response.status_code != 200:
+            logging.error(f"Failed to drop active job ({response.content})")
+        else:
+            logging.info(f"Dropped active job {job_id}")
+
+    def cancel_active_job(self) -> None:
+        self._assert_socket_connection()
+
+        self._socket.emit('get_active_job', namespace='/client')
+        response = self._socket.receive()
+        if response.event != 'success':
+            logging.warning("no active job to drop")
+            return
+
+        job_id = response.data['id']
+
+        requests.post(f'http://{self._server}:{self._port}/jobs/delete',
+                      json={'ids': [job_id], 'force': True})

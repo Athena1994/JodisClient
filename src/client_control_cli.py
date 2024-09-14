@@ -196,6 +196,22 @@ class ChangeStateCommand(Command[ClaimedState]):
             return state
 
 
+class PauseActiveJobCommand(Command[SuspendedState]):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def run(self, state: SuspendedState) -> BaseState:
+        state.client.drop_active_job()
+
+
+class CancelActiveJobCommand(Command[SuspendedState]):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def run(self, state: SuspendedState) -> BaseState:
+        state.client.cancel_active_job()
+
+
 class CustomAPIClient(APIClient):
     def __init__(self,
                  server: str, port: int,
@@ -209,6 +225,12 @@ class CustomAPIClient(APIClient):
 
     def on_release_requested(self) -> None:
         self._sm.dispatch_command(ChangeStateCommand(False))
+
+    def on_drop_active_job_requested(self) -> None:
+        self._sm.dispatch_command(PauseActiveJobCommand())
+
+    def on_cancel_active_job_requested(self) -> None:
+        self._sm.dispatch_command(CancelActiveJobCommand())
 
 
 def main():

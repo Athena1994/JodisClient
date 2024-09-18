@@ -62,7 +62,7 @@ class APIClient:
 
         target = f"{self._server}:{self._port}"
         response = requests.post(f'http://{target}/client/register',
-                                 params={'name': name})
+                                 json={'name': name})
 
         if response.status_code != 200:
             logging.error(f"Server returned {response.status_code}")

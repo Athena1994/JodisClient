@@ -64,11 +64,11 @@ class ConnectedState(BaseState):
 
         self.add_handler('disconnect', self._disconnect)
         self.add_handler('register', self._register,
-                         [Parameter('name', gethostname()),
-                          Parameter('save', 'False')])
+                         [Parameter('name', str, gethostname()),
+                          Parameter('save', bool, 'False')])
         self.add_handler('list', self._get_clients)
         self.add_handler('claim', self._claim,
-                         [Parameter('id',
+                         [Parameter('id', int,
                                     default_expr='context["cfg"].client_id')])
 
     def _get_clients(self, _, context: dict) -> 'BaseState':
@@ -134,8 +134,16 @@ class ActiveState(ClaimedState):
         super().__init__(client, client_name, client_id)
 
         self.add_handler('deactivate', self._release_active)
+        self.add_handler('start-next', self._start_next)
 
-        self.add_handler('start_next', self._start_next)
+        self.add_handler('set-phase', self._set_phase,
+                         [Parameter('phase', str),
+                          Parameter('cnt', int, default_value=-1)])
+        self.add_handler('update-phase', self._update_phase,
+                         [Parameter('ix', int),
+                          Parameter('tpi', float)])
+        self.add_handler('set-msg', self._set_msg,
+                         [Parameter('msg', str)])
 
     def _start_next(self, _, __) -> 'BaseState':
         self.client.claim_next_job()
@@ -150,6 +158,18 @@ class ActiveState(ClaimedState):
         else:
             print("Failed to release active state")
             return self
+
+    def _set_phase(self, params: dict, _) -> 'BaseState':
+        self.client.set_phase(params['phase'], params['cnt'])
+        return self
+
+    def _update_phase(self, params: dict, _) -> 'BaseState':
+        self.client.update_phase(params['ix'], params['tpi'])
+        return self
+
+    def _set_msg(self, params: dict, _) -> 'BaseState':
+        self.client.set_message(params['msg'])
+        return self
 
     def prompt_prefix(self, _) -> str:
         return (

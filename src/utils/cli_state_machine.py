@@ -11,6 +11,7 @@ from typing import Callable, Dict, Generic, List, TypeVar, get_args
 @dataclass
 class Parameter:
     name: str
+    type_: type
     default_value: object | None = None
     default_expr: str | None = None
 
@@ -58,6 +59,15 @@ class Handler:
                     else:
                         print(f'Missing parameter {param.name}')
                         return None
+
+        for p in self._params:
+            v = parameter_dict[p.name]
+            if not isinstance(v, p.type_):
+                try:
+                    parameter_dict[p.name] = p.type_(v)
+                except (ValueError, TypeError):
+                    print(f'Parameter {key} must be of type {key.type_}')
+                    return None
 
         return self._callback(parameter_dict, context)
 

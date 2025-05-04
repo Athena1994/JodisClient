@@ -182,3 +182,32 @@ class APIClient:
 
         requests.post(f'http://{self._server}:{self._port}/jobs/delete',
                       json={'ids': [job_id], 'force': True})
+
+    def set_phase(self, phase: str, cnt: int) -> None:
+        self._assert_socket_connection()
+        self._socket.emit('set_phase', phase, cnt,
+                          namespace='/client')
+        resp = self._socket.receive()
+        logging.info(resp.event)
+        if resp.data is not None:
+            logging.info(resp.data)
+
+    def update_phase(self, ix: int, time_per_ix: float):
+        self._assert_socket_connection()
+        self._socket.emit('update_phase', ix, time_per_ix,
+                          namespace='/client')
+
+        resp = self._socket.receive()
+        logging.info(resp.event)
+        if resp.data is not None:
+            logging.info(resp.data)
+
+    def set_message(self, message: str) -> None:
+        self._assert_socket_connection()
+        self._socket.emit('set_message', message,
+                          namespace='/client')
+
+        resp = self._socket.receive()
+        logging.info(resp.event)
+        if resp.data is not None:
+            logging.info(resp.data)

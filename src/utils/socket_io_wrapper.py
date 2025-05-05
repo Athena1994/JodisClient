@@ -5,7 +5,7 @@ import threading
 from typing import Callable, Dict
 import socketio
 
-from src.utils.message_event import MessageEvent
+from utils.message_event import MessageEvent
 
 
 @dataclass

@@ -18,7 +18,6 @@ from training_manager import TrainingManager, TrainingReporter
 
 class BaseProgram:
 
-
     def __init__(self,
                  config_files: ConfigFiles,
                  use_cuda: bool = True):

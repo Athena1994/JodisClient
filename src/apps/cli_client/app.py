@@ -1,6 +1,7 @@
 
-import inspect
 import logging
+
+import socketio
 
 # from apps.cli_client.commands.cancel_active_job import CancelActiveJobCommand
 # from apps.cli_client.commands.change_state import ChangeStateCommand
@@ -8,10 +9,10 @@ import logging
 
 from apps.cli_client.services.config_service import ConfigService
 
+#from apps.cli_client.states.unconnected import UnconnectedState
 from core.api.api_client import APIClient
-from core.cli_state_machine.base_state import BaseState, CliCommand
 from core.cli_state_machine.state_machine_control import StateMachineControl
-from utils.cli.cli_command import CLICommand
+from utils.injector import get_injector, inject
 
 
 logging.basicConfig(level=logging.INFO)
@@ -39,26 +40,35 @@ class CustomAPIClient(APIClient):
     #     self._sm.dispatch_command(CancelActiveJobCommand())
 
 
+class Test:
+    def test(self):
+        print("Test class")
+
+
+@inject
+def test(b: int, a: Test,  c=3):
+    a.test()
+    print(b, c)
+
 
 def main():
 
     config_service = ConfigService(CONFIG_FILE)
 
-    context = {
-        'abc': 1,
-    }
+    cfg = config_service.config
 
-    sm = StateMachineControl(context)
+    sm = StateMachineControl()
 
-    sm.run(TestState())
+    get_injector().register(Test())
+
+    test(2)
+
+    return
 
     # while True:
-    #     init_context = {
-    #         'cfg': cfg,
-    #     }
     #     with CustomAPIClient(cfg.server, cfg.port, 5, sm) as client:
     #         try:
-    #             sm.run(init_context, UnconnectedState(client))
+    #             sm.run(UnconnectedState(client))
     #             break
     #         except socketio.exceptions.TimeoutError or TimeoutError:
     #             logging.error("Connection timedout!")

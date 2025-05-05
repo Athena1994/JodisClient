@@ -76,6 +76,11 @@ class CliCommand:
 
         params = filter(lambda p: p.name != 'self', sig.parameters.values())
 
+        # ignore parameters with complex type
+        params = filter(lambda p: p.annotation in (inspect.Parameter.empty,
+                                                   str, int, float, bool),
+                        params)
+
         if self._inject_context:
             params = filter(lambda p: p.name != 'context', params)
 
@@ -92,3 +97,8 @@ class CliCommand:
         ]
 
         return wrapper
+
+
+def ignore(func):
+    func._ignore = True  # Add a marker attribute to the function
+    return func

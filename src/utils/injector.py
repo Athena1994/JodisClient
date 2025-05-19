@@ -1,6 +1,7 @@
 
+import functools
 import inspect
-from typing import Dict
+from typing import Dict, Type, TypeVar
 
 
 class Injector:
@@ -11,16 +12,17 @@ class Injector:
 
         self._previous_injector = None
 
-    def register(self, dependency: object):
+    def bind(self, dependency_type: Type, to: object, overwrite: bool = False):
         """
         Register a dependency by type.
         """
-        key = type(dependency)
-        if key in self._dependencies:
-            raise ValueError(f"Dependency {key} already registered")
-        self._dependencies[key] = dependency
+        if not overwrite and dependency_type in self._dependencies:
+            raise ValueError(f"Dependency {dependency_type} already registered")
+        self._dependencies[dependency_type] = to
 
-    def resolve(self, type: type):
+    T = TypeVar("T")
+
+    def resolve(self, type: T) -> T:
         """
         Resolve a dependency by name.
         """
@@ -70,6 +72,7 @@ def inject(func):
     """
     Decorator to inject dependencies.
     """
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         injector = get_injector()
 
@@ -92,4 +95,6 @@ def inject(func):
     func._injectable_args = dict(
         map(lambda p: (p[1].name, (p[0], p[1].annotation)), typed_args))
 
+    if inspect.iscoroutinefunction(func):
+        return inspect.markcoroutinefunction(wrapper)
     return wrapper

@@ -1,63 +1,40 @@
+import logging
+from pathlib import Path
+
+from utils.config.attribute import Attribute
+from utils.config.decorator import config
+from utils.config.helper import load_config, save_config
 
 
-from dataclasses import dataclass
-import json
-import os
-from jsonschema import validate
+@config
+class AppConfig:
+    server: str = Attribute(default="localhost")
+    port: int = Attribute(default=5000)
 
+    root: Path = Attribute(required=True, json_type=str)
 
-@dataclass
-class Config:
-    server: str = 'localhost'
-    port: int = 5000
-
-    client_id: int = -1
-
-
-schema = {
-    "type": "object",
-    "properties": {
-        "server": {
-            "type": "string",
-            "default": "localhost"},
-        "port": {
-            "type": "integer",
-            "default": 5000,
-            "minimum": 1, "maximum": 65535},
-        "client_id": {
-            "type": "integer",
-            "default": -1, "minimum": -1},
-    },
-    "required": ["server", "port", "client_id"],
-}
+    client_id: int = Attribute("client-id", default=-1)
 
 
 class ConfigService:
-    def __init__(self, file: str):
-        self._config: Config = None
+    def __init__(self, file: Path):
+        self._config: AppConfig = None
         self._file = file
 
-        if not os.path.exists(file):
-            json_data = {}
-        else:
-            with open(file, 'r') as f:
-                json_data = json.load(f)
+        try:
+            self._config = load_config(file, AppConfig)
+        except FileNotFoundError:
+            logging.warning(f"Config file {file} not found. Loading default "
+                            "values.")
+            self._config = AppConfig()
+        print(self._config)
 
-        for key, value in schema["properties"].items():
-            if key not in json_data and "default" in value:
-                json_data[key] = value["default"]
-
-        validate(json_data, schema)
-
-        self._config = Config(**json_data)
+    def __call__(self, *args, **kwds):
+        return self._config
 
     @property
-    def config(self) -> Config:
+    def config(self) -> AppConfig:
         return self._config
 
     def save(self):
-
-        validate(self._config.__dict__, schema)
-
-        with open(self._file, 'w') as f:
-            json.dump(self.config, f)
+        save_config(self._config, self._file)

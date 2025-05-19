@@ -8,7 +8,7 @@ from flask import Flask
 from flask_socketio import SocketIO
 import flask_socketio
 
-from src.utils.socket_io_wrapper import SocketIOWrapper
+from utils.socket_io_wrapper import SocketIOWrapper
 
 
 logging.basicConfig(level=logging.DEBUG)

@@ -1,12 +1,15 @@
 
 from apps.cli_client.states.suspended import SuspendedState
+from core.socket_api.api_client import APIClient
 from core.cli_state_machine.base_state import BaseState
 from core.cli_state_machine.state_command import StateCommand
+from utils.injector import inject
 
 
 class PauseActiveJobCommand(StateCommand[SuspendedState]):
     def __init__(self) -> None:
         super().__init__()
 
-    def run(self, state: SuspendedState) -> BaseState:
-        state.client.drop_active_job()
+    @inject
+    def run(self, state: SuspendedState, client: APIClient) -> BaseState:
+        client.drop_active_job()

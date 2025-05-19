@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import threading
+import traceback
 import requests
 
 from utils.socket_io_wrapper import SocketIOWrapper
@@ -15,7 +17,12 @@ class APIClient:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._socket.disconnect()
+
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._socket.disconnect(), loop)
+        else:
+            loop.run_until_complete(self._socket.disconnect())
 
     def __init__(self,
                  server: str, port: int,
@@ -41,6 +48,8 @@ class APIClient:
             lambda: threading.Thread(target=self.on_cancel_active_job_requested)
                              .start())
 
+    # --- event handlers ---
+
     def on_release_requested(self) -> None:
         pass
 
@@ -53,11 +62,54 @@ class APIClient:
     def on_cancel_active_job_requested(self) -> None:
         pass
 
+    # --- private methods ---
+
     def _assert_socket_connection(self) -> None:
         if not self._socket.is_connected():
             raise NotConnectedError("Not connected")
 
+    async def _set_state(self, active: bool) -> str | None:
+        self._assert_socket_connection()
+        await self._socket.emit('set_state', active, namespace='/client')
+        response = self._socket.receive()
+        if response.event == 'success':
+            new_state = response.data['state']
+            logging.info(f"State set to {new_state}")
+            return new_state
+        else:
+            logging.error(f"Failed to set state ({response})")
+            return None
+    # --- api methods ---
+
+    # ------ connection ---
+
+    async def connect(self) -> bool:
+        """Connect to the server."""
+
+        try:
+            await self._socket.connect(f'http://{self._server}',
+                                       self._port, '/client')
+        except TimeoutError:
+            logging.error("Connection attempt timedout!")
+            return False
+        except Exception as e:
+            logging.error(f"Failed to connect: {e}\n{traceback.format_exc()}")
+            return False
+
+        logging.info(f"Socket connection established "
+                     f"({self._server}:{self._port})")
+        return True
+
+    async def disconnect(self) -> None:
+        """Disconnect from the server."""
+
+        await self._socket.disconnect()
+        logging.info("Disconnected")
+
+    # ------ client profiles ----
+
     def register(self, name: str) -> int:
+        """Register a new clien profile with the server."""
         self._assert_socket_connection()
 
         target = f"{self._server}:{self._port}"
@@ -73,32 +125,20 @@ class APIClient:
         logging.info(f"Registered with client id {id}")
         return id
 
-    def get_client_list(self) -> list:
+    async def get_client_list(self) -> list:
+        """Get the list of registered clients from the server."""
         self._assert_socket_connection()
-        self._socket.emit('get_clients', namespace='/client')
+        await self._socket.emit('get_clients', namespace='/client')
         response = self._socket.receive()
         return response.data
 
-    def connect(self) -> bool:
-        try:
-            self._socket.connect(f'http://{self._server}',
-                                 self._port, '/client')
-        except TimeoutError:
-            logging.error("Connection attempt timedout!")
-            return False
-        except Exception as e:
-            logging.error(f"Failed to connect: {e}")
-            return False
-
-        logging.info(f"Socket connection established "
-                     f"({self._server}:{self._port})")
-        return True
-
-    def claim_client(self, client_id: int) -> dict:
+    async def claim_client(self, client_id: int) -> dict:
+        """Claim a client profile with the given id."""
         self._assert_socket_connection()
-        self._socket.emit('claim_client', client_id,
-                          namespace='/client')
-        response = self._socket.receive()
+        await self._socket.emit('claim_client', client_id,
+                                namespace='/client')
+
+        response = await self._socket.receive()
 
         result = response.event == 'claim_successfull'
 
@@ -106,21 +146,21 @@ class APIClient:
             logging.info(f"Connected as client {client_id}")
             return response.data
         else:
-            logging.error(f"Failed to connect ({response})")
+            logging.error(f"Failed to claim id! ({response})")
             return None
 
-    def drop_claim(self) -> None:
-        self._assert_socket_connection()
-        self._socket.emit('drop_claim', namespace='/client')
+    async def drop_claim(self) -> None:
+        """Drop the claim on the client profile."""
 
-    def disconnect(self) -> None:
-        self._socket.disconnect()
-        logging.info("Disconnected")
-
-    def claim_next_job(self) -> dict:
         self._assert_socket_connection()
-        self._socket.emit('claim_next_job', namespace='/client')
-        response = self._socket.receive()
+        await self._socket.emit('drop_claim', namespace='/client')
+
+    # ----- jobs -----
+
+    async def claim_next_job(self) -> dict:
+        self._assert_socket_connection()
+        await self._socket.emit('claim_next_job', namespace='/client')
+        response = await self._socket.receive()
 
         result = response.event == 'job_claimed'
 
@@ -131,29 +171,11 @@ class APIClient:
             logging.error(f"Failed to claim job ({response})")
             return None
 
-    def _set_state(self, active: bool) -> str | None:
-        self._assert_socket_connection()
-        self._socket.emit('set_state', active, namespace='/client')
-        response = self._socket.receive()
-        if response.event == 'success':
-            new_state = response.data['state']
-            logging.info(f"State set to {new_state}")
-            return new_state
-        else:
-            logging.error(f"Failed to set state ({response})")
-            return None
-
-    def release_active_state(self) -> str | None:
-        return self._set_state(active=False)
-
-    def claim_active_state(self) -> str | None:
-        return self._set_state(active=True)
-
-    def drop_active_job(self) -> None:
+    async def drop_active_job(self) -> None:
         self._assert_socket_connection()
 
-        self._socket.emit('get_active_job', namespace='/client')
-        response = self._socket.receive()
+        await self._socket.emit('get_active_job', namespace='/client')
+        response = await self._socket.receive()
         if response.event != 'success':
             logging.warning("no active job to drop")
             return
@@ -169,11 +191,11 @@ class APIClient:
         else:
             logging.info(f"Dropped active job {job_id}")
 
-    def cancel_active_job(self) -> None:
+    async def cancel_active_job(self) -> None:
         self._assert_socket_connection()
 
-        self._socket.emit('get_active_job', namespace='/client')
-        response = self._socket.receive()
+        await self._socket.emit('get_active_job', namespace='/client')
+        response = await self._socket.receive()
         if response.event != 'success':
             logging.warning("no active job to drop")
             return
@@ -183,31 +205,10 @@ class APIClient:
         requests.post(f'http://{self._server}:{self._port}/jobs/delete',
                       json={'ids': [job_id], 'force': True})
 
-    def set_phase(self, phase: str, cnt: int) -> None:
-        self._assert_socket_connection()
-        self._socket.emit('set_phase', phase, cnt,
-                          namespace='/client')
-        resp = self._socket.receive()
-        logging.info(resp.event)
-        if resp.data is not None:
-            logging.info(resp.data)
+    # ------ state management -----
 
-    def update_phase(self, ix: int, time_per_ix: float):
-        self._assert_socket_connection()
-        self._socket.emit('update_phase', ix, time_per_ix,
-                          namespace='/client')
+    def release_active_state(self) -> str | None:
+        return self._set_state(active=False)
 
-        resp = self._socket.receive()
-        logging.info(resp.event)
-        if resp.data is not None:
-            logging.info(resp.data)
-
-    def set_message(self, message: str) -> None:
-        self._assert_socket_connection()
-        self._socket.emit('set_message', message,
-                          namespace='/client')
-
-        resp = self._socket.receive()
-        logging.info(resp.event)
-        if resp.data is not None:
-            logging.info(resp.data)
+    def claim_active_state(self) -> str | None:
+        return self._set_state(active=True)

@@ -1,31 +1,45 @@
 
 
+from apps.cli_client.command_pages.general_client_commands \
+    import GeneralClientCommands
+from apps.cli_client.command_pages.module_management_commands \
+    import ModuleManagementCommands
+from apps.cli_client.command_pages.server_job_commands \
+    import ServerJobCommands
 from apps.cli_client.states.active import ActiveState
-from apps.cli_client.states.claimed import ClaimedState
-from core.api.api_client import APIClient
+from core.cli_state_machine.cli_command_decorator import CliCommand
+from core.socket_api.api_client import APIClient
 from core.cli_state_machine.base_state import BaseState
+from utils.injector import inject
 
 
-class SuspendedState(ClaimedState):
-    def __init__(self,
-                 client: APIClient,
-                 client_name: str,
-                 client_id: int):
-        super().__init__(client, client_name, client_id)
-
-        self.add_handler('activate', self._claim_active)
-
-    def _claim_active(self, _, __) -> BaseState:
-        new_state = self.client.claim_active_state()
+class SuspendedCommandPage:
+    @CliCommand('activate')
+    @inject
+    def _claim_active(self, client: APIClient) -> BaseState:
+        new_state = client.claim_active_state()
         if new_state:
             print(f"Claimed active state ({new_state})")
-            return ActiveState(self.client,
-                               self._client_name, self._client_id)
+            return ActiveState.instance()
         else:
             print("Failed to claim active state")
-            return self
 
-    def prompt_prefix(self, _) -> str:
+
+class SuspendedState(BaseState):
+    _instance: 'SuspendedState' = None
+
+    @classmethod
+    def instance(cls) -> 'SuspendedState':
+        if cls._instance is None:
+            cls._instance = SuspendedState()
+        return cls._instance
+
+    def __init__(self):
+        super().__init__(SuspendedCommandPage(), GeneralClientCommands(),
+                         ModuleManagementCommands(), ServerJobCommands())
+
+    def prompt_prefix(self) -> str:
         return (
-            f'connected ({self._client_id}: {self._client_name}, suspended)'
+            f'connected ({self.context["id"]}: {self.context["name"]}, '
+            'suspended)'
         )

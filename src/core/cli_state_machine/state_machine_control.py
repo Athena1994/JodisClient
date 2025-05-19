@@ -1,9 +1,10 @@
 import enum
 import logging
+import traceback
 from typing import List, get_args
 
 from core.cli_state_machine.base_state import BaseState
-from core.cli_state_machine.state_command import StateCommand
+from core.cli_state_machine.state_command import Dispatcher, StateCommand
 from utils.cli.cli_command import CLICommand
 from utils.cli.stoppable_input import StoppableInput
 
@@ -13,7 +14,7 @@ class BaseCLICommands(enum.Enum):
     EXIT = 'exit'
 
 
-class StateMachineControl:
+class StateMachineControl(Dispatcher):
 
     def __init__(self, context: dict = {}):
 
@@ -32,11 +33,11 @@ class StateMachineControl:
         self._state = value
         self._state.context = self._context
 
-    def dispatch_command(self, cmd: StateCommand):
+    def dispatch(self, cmd: StateCommand):
         self._command_queue.append(cmd)
         self._input.cancel()
 
-    def _execute_command(self, cmd: StateCommand):
+    async def _execute_command(self, cmd: StateCommand):
         if not isinstance(self.state,
                           get_args(cmd.__orig_bases__[0])[0]):
             logging.warning('Invalid state type for provided command')
@@ -45,7 +46,8 @@ class StateMachineControl:
         try:
             self.state = cmd.run(self.state) or self.state
         except Exception as e:
-            logging.error(f'Error processing command: {e}')
+            logging.error(f"Error processing command: {e}\n"
+                          f"{traceback.format_exc()}")
             return
 
     def _wait_for_user_input(self) -> str:
@@ -55,13 +57,13 @@ class StateMachineControl:
 
         return self._input.read()
 
-    def run(self, init_state: BaseState):
+    async def run(self, init_state: BaseState):
         self.state = init_state
 
         while True:
             # process any pending state commands
             while len(self._command_queue) != 0:
-                self._execute_command(self._command_queue.pop(0))
+                await self._execute_command(self._command_queue.pop(0))
 
             # --- await and parse user command ---
             cmd = self._wait_for_user_input()
@@ -88,7 +90,13 @@ class StateMachineControl:
 
             # --- state commands ---
 
-            new_state = self._state.handle(parser_result)
+            try:
+                new_state = await self.state.handle(parser_result)
+            except Exception as e:
+                logging.error(f'Error processing command: {parser_result} in '
+                              f'state {self.state}\n{e}\n'
+                              f'{traceback.format_exc()}')
+                continue
 
             if new_state is None:
                 print('Invalid command')

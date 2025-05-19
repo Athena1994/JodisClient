@@ -16,3 +16,11 @@ class StateCommand(Generic[T]):
 
     def get_state_type(self) -> type:
         return T
+
+
+class Dispatcher:
+
+    @abstractmethod
+    def dispatch(self, cmd: StateCommand):
+        raise NotImplementedError(
+            "This method should be overridden in subclasses.")

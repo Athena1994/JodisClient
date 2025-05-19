@@ -1,65 +1,70 @@
 
 from socket import gethostname
-from apps.cli_client.states.active import ActiveState
-from apps.cli_client.states.suspended import SuspendedState
-from apps.cli_client.states.unconnected import UnconnectedState
-from core.api.api_client import APIClient
+from apps.cli_client.command_pages.general_client_commands \
+    import GeneralClientCommands
+from apps.cli_client.command_pages.module_management_commands \
+    import ModuleManagementCommands
+from apps.cli_client.command_pages.server_job_commands \
+    import ServerJobCommands
+from apps.cli_client.services.config_service import ConfigService
+from core.cli_state_machine.cli_command_decorator import CliCommand
+from core.cli_state_machine.cli_command_page import CLICommandPage
+from core.socket_api.api_client import APIClient
 from core.cli_state_machine.base_state import BaseState
-from core.cli_state_machine.cli_command_handler import CLICommandHandler
+from utils.injector import inject
+
+
+class ConnectedStateCommands(CLICommandPage):
+    def __init__(self):
+        super().__init__()
+
+    @CliCommand('register')
+    @inject
+    def _register(self, client: APIClient, cs: ConfigService,
+                  name: str = '', save: bool = False):
+
+        if name == '':
+            name = gethostname()
+
+        cs.config.client_id = client.register(name)
+        if save:
+            cs.save()
+
+    @CliCommand('claim')
+    @inject
+    async def _claim(self, client: APIClient, cs: ConfigService,
+                     context, id: int = -1) -> BaseState:
+        if id == -1:
+            id = cs.config.client_id
+
+        result = await client.claim_client(id)
+
+        if result:
+            context['name'] = result['name']
+            context['id'] = result['id']
+
+            if result['state'] == 'ACTIVE':
+                from apps.cli_client.states.active import ActiveState
+                return ActiveState.instance()
+            else:
+                from apps.cli_client.states.suspended import SuspendedState
+                return SuspendedState.instance()
+        else:
+            print('Failed to claim client')
 
 
 class ConnectedState(BaseState):
-    def __init__(self, client: APIClient):
-        super().__init__()
-        self._client = client
+    _instance: 'ConnectedState' = None
 
-        self.add_handler('disconnect', self._disconnect)
-        self.add_handler('register', self._register,
-                         [CLICommandHandler.Parameter('name', str, gethostname()),
-                          CLICommandHandler.Parameter('save', bool, 'False')])
-        self.add_handler('list', self._get_clients)
-        self.add_handler('claim', self._claim,
-                         [CLICommandHandler.Parameter(
-                            'id', int,
-                            default_expr='context["cfg"].client_id')])
+    @classmethod
+    def instance(cls) -> 'ConnectedState':
+        if cls._instance is None:
+            cls._instance = ConnectedState()
+        return cls._instance
 
-    def prompt_prefix(self, _) -> str:
+    def __init__(self):
+        super().__init__(ConnectedStateCommands(), GeneralClientCommands(),
+                         ModuleManagementCommands(), ServerJobCommands())
+
+    def prompt_prefix(self) -> str:
         return 'connected'
-
-    # --- properties ---
-
-    @property
-    def client(self) -> APIClient:
-        return self._client
-
-    # --- handlers -----
-
-    def _get_clients(self, _, context: dict) -> 'BaseState':
-        clients = self.client.get_client_list()
-        for client in clients:
-            print(f"{client['id']}: {client['name']}")
-        return self
-
-    def _register(self, params: dict, context: dict) -> 'BaseState':
-        cfg: Config = context['cfg']
-        cfg.client_id = self.client.register(params['name'])
-        if params['save']:
-            cfg.save()
-        return self
-
-    def _disconnect(self, _, __) -> 'BaseState':
-        self.client.disconnect()
-        return UnconnectedState(self.client)
-
-    def _claim(self, params: dict, _) -> 'BaseState':
-        result = self.client.claim_client(int(params['id']))
-        if result:
-            if result['state'] == 'ACTIVE':
-                return ActiveState(self.client,
-                                   result['name'], result['id'])
-            else:
-                return SuspendedState(self.client,
-                                      result['name'], result['id'])
-        else:
-            print('Failed to claim client')
-            return self

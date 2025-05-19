@@ -1,10 +1,10 @@
 
-import threading
+import asyncio
 
 
 class MessageEvent:
     def __init__(self):
-        self._event = threading.Event()
+        self._event = asyncio.Event()
         self._message: object = None
 
     def set(self, message: object):
@@ -14,9 +14,17 @@ class MessageEvent:
     def get_message(self):
         return self._message
 
-    def wait(self, timeout: float) -> object:
+    async def wait(self, timeout: float) -> object:
 
-        if not self._event.wait(timeout):
+        waiter = self._event.wait()
+
+        asyncio.get_event_loop().call_later(
+            delay=timeout,
+            callback=lambda: self.set(None))
+
+        await waiter
+
+        if self._message is None:
             raise TimeoutError()
 
         return self._message

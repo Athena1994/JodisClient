@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from typing import Callable, TYPE_CHECKING
+import inspect
+from typing import Awaitable, Callable, TYPE_CHECKING
 
 from utils.cli.cli_command import CLICommand
 
@@ -12,12 +13,14 @@ if TYPE_CHECKING:
 
 class CLICommandHandler:
 
-    def __init__(self, callback: Callable[[dict, dict], BaseState],
+    def __init__(self, callback: Callable[[dict, dict],
+                                          BaseState | Awaitable[BaseState]],
                  params: list[Parameter]):
         self._callback = callback
         self._params = params
+        self._awaitable = inspect.iscoroutinefunction(callback)
 
-    def handle(self, context: dict, command: CLICommand) -> BaseState:
+    async def handle(self, context: dict, command: CLICommand) -> BaseState:
 
         parameter_dict = {}
 
@@ -26,21 +29,21 @@ class CLICommandHandler:
                 value = command.get_parameter(i, param.name)
                 parameter_dict[param.name] = param.get_value(value)
             except ValueError as e:
-                print(f'Error processing parameter {param.name}: {e}')
-                return None
+                raise ValueError(f'Error processing parameter {param.name}: '
+                                 f'{e}')
 
-        return self._callback(parameter_dict, context)
+        if self._awaitable:
+            return await self._callback(parameter_dict, context)
+        else:
+            return self._callback(parameter_dict, context)
 
     @dataclass
     class Parameter:
         name: str
         type_: type
+        has_default: bool
         default_value: object | None = None
         default_expr: str | None = None
-
-        def has_default(self) -> bool:
-            return self.default_value is not None \
-                or self.default_expr is not None
 
         @property
         def default(self) -> object:
@@ -48,6 +51,8 @@ class CLICommandHandler:
                 return self.default_value
             elif self.default_expr is not None:
                 return eval(self.default_expr)
+            elif self.has_default:
+                return None
             else:
                 raise ValueError("no default value or expression for property "
                                  f"'{self.name}'")
@@ -56,7 +61,7 @@ class CLICommandHandler:
             if value is None:
                 value = self.default
 
-            if not isinstance(value, self.type_):
+            if not isinstance(value, self.type_) and value is not None:
                 try:
                     value = self.type_(value)
                 except (ValueError, TypeError):
